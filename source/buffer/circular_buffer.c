@@ -21,7 +21,7 @@ bool CBisEmpty(circularBuffer * CB){
 	return CB->head == CB->tail;
 }
 
-void CBputChain(circularBuffer * CB, void * data, uint8_t bytesLen){
+void CBputChain(circularBuffer * CB, const void * data, uint8_t bytesLen){
 	for (uint8_t i = 0; i < bytesLen; ++i) {
 		CB->buffer[CB->head] = ((uint8_t*)data)[i];
 		CB->head = getCircularPointer(++CB->head);
@@ -39,7 +39,7 @@ uint8_t CBgetByte(circularBuffer * CB){
 		CB->tail = getCircularPointer(++CB->tail);
 		return data;
 	}
-	return BUFFER_EMPTY;
+	return 0;
 }
 
 uint8_t CBgetBufferState(circularBuffer * CB){

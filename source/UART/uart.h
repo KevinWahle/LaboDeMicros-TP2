@@ -30,7 +30,7 @@ typedef enum {NO_PARITY, EVEN_PARITY, ODD_PARITY} PARITY_TYPE;
 typedef struct {
     uint32_t baudrate;
     PARITY_TYPE parity;
-    bool MSB;
+    bool MSBF;    // MSB First
 } uart_cfg_t;
 
 
