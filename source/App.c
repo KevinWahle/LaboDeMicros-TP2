@@ -7,8 +7,10 @@
 /*******************************************************************************
  * INCLUDE HEADER FILES
  ******************************************************************************/
-
-
+#include "UART/uart.h"
+#include "MCAL/gpio.h"
+#include "timer/timer.h"
+#include "MCAL/board.h"
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
@@ -27,16 +29,26 @@
  *******************************************************************************
  ******************************************************************************/
 
+
+
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
 {
-	//TODO
+	//uart_cfg_t cfg = {.MSBF = true, .baudrate = 9600, .parity = false};
+	//uartInit(1, cfg);
+	gpioMode(PIN_LED_RED, OUTPUT);
+	gpioWrite(PIN_LED_RED, HIGH);
+	timerInit();
 }
 
 /* Función que se llama constantemente en un ciclo infinito */
 void App_Run (void)
 {
-	//TODO
+	gpioWrite(PIN_LED_RED, LOW);
+
+	timerDelay(TIMER_MS2TICKS(500));
+	gpioWrite(PIN_LED_RED, HIGH);
+	timerDelay(TIMER_MS2TICKS(500));
 }
 
 

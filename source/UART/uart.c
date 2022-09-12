@@ -145,7 +145,7 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 // Enable NVIC Interrupts
 
 	NVIC_EnableIRQ(UART_RX_TX_Vectors[id]);
-	NVIC_EnableIRQ(UART_ERR_Vectors[id]);
+	//NVIC_EnableIRQ(UART_ERR_Vectors[id]);
 
 }
 
@@ -153,7 +153,7 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 __ISR__ UART1_RX_TX_IRQHandler(void){
 
 	if(UART1->S1 & UART_S1_TDRE_MASK) {	
-		if (CBisEmpty(TxBuffer)) {
+		if (!CBisEmpty(TxBuffer + 1)) {
 			uint8_t data = CBgetByte(TxBuffer);
 			UART1->D = data;		// flag cleaned when writing in D buffer
 		}
@@ -163,7 +163,7 @@ __ISR__ UART1_RX_TX_IRQHandler(void){
 		}
 	}
 	else if (UART1->S1 & UART_S1_RDRF_MASK) {
-
+		CBputByte(RxBuffer + 1, UART1->D);
 	}
 }
 
