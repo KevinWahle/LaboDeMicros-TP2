@@ -121,7 +121,8 @@ bool timerExpired(tim_id_t id)
     bool expired = timers[id].expired;
 
     // y bajo el flag
-    timers[id].expired= 0b0;
+    if (expired)
+    	timers[id].expired = 0b0;
 
     return expired;
 }
