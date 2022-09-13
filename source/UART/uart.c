@@ -95,6 +95,13 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 // Clock Gating
 
 	uint32_t clkFreq = UARTClockSource[id];
+	SIM->SCGC4 |= SIM_SCGC4_UART1_MASK;
+
+// Pinout setup
+
+	//TODO: Enable CLK for PORTx
+	portPtr[UARTPinPort[id]]->PCR[UARTPinNumRX[id]] = PORT_PCR_MUX(UARTPinMuxAlt[id]);		// Borra otros flags
+	portPtr[UARTPinPort[id]]->PCR[UARTPinNumTX[id]] = PORT_PCR_MUX(UARTPinMuxAlt[id]);		// Borra otros flags
 
 // Baud rate config
 
@@ -106,46 +113,34 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 	if (!baudrate) baudrate = DEFAULT_BAUDRATE;
 
 	sbr = clkFreq / (baudrate << 4);
-
 	brfa = (clkFreq << 1) / baudrate - (sbr << 5);
 
 	// IMPORTANTE: Primero el HIGH
 	uart->BDH = UART_BDH_SBR(sbr >> 8);			// Borra los otros flags
-
 	uart->BDL = UART_BDL_SBR(sbr);
-
 	uart->C4 = UART_C4_BRFA(brfa);				// Borra los otros flags
-
 	uart->S2 = UART_S2_MSBF(config.MSBF);		// Borra los otros flags
-
-// Control
-
-	// Parity (Si hay paridad, habilitar 9 bits de data)
-	uart->C1 = UART_C1_PE(config.parity != NO_PARITY) | UART_C1_PT(config.parity == ODD_PARITY) | UART_C1_M(config.parity != NO_PARITY);	// Borra los demas flags
-
-	// Habilitar Rx e interrupciones
-	uart->C2 = UART_C2_RE(1) | UART_C2_TIE(1) | UART_C2_TCIE(1) | UART_C2_RE(1);	// | UART_C2_TE(1) 		// Borra los demas flags
-
-	TxOn[id] = false;
-
-	// Habilita interrupcion por Parity Error y Overrun
-	uart->C3 = UART_C3_ORIE(1) | UART_C3_PEIE(1);		// Borra los otros flags
-
-// Pinout setup
-
-	//TODO: Enable CLK for PORTx
-	portPtr[UARTPinPort[id]]->PCR[UARTPinNumRX[id]] = PORT_PCR_MUX(UARTPinMuxAlt[id]);		// Borra otros flags
-	portPtr[UARTPinPort[id]]->PCR[UARTPinNumTX[id]] = PORT_PCR_MUX(UARTPinMuxAlt[id]);		// Borra otros flags
-
-// Initialize Buffers
-
-	CBinit(TxBuffer+id);
-	CBinit(RxBuffer+id);
 
 // Enable NVIC Interrupts
 
 	NVIC_EnableIRQ(UART_RX_TX_Vectors[id]);
 	//NVIC_EnableIRQ(UART_ERR_Vectors[id]);
+
+// Control
+
+	// Parity (Si hay paridad, habilitar 9 bits de data)
+	uart->C1 = UART_C1_PE(config.parity != NO_PARITY) | UART_C1_PT(config.parity == ODD_PARITY) | UART_C1_M(config.parity != NO_PARITY);	// Borra los demas flags
+	// Habilitar Rx e interrupciones
+	//uart->C2 = UART_C2_RE(1) | UART_C2_TIE(1) | UART_C2_TCIE(1) | UART_C2_RE(1);	// | UART_C2_TE(1) 		// Borra los demas flags
+	uart->C2 = UART_C2_TIE(1);
+	TxOn[id] = false;
+	// Habilita interrupcion por Parity Error y Overrun
+	//uart->C3 = UART_C3_ORIE(1) | UART_C3_PEIE(1);		// Borra los otros flags
+
+
+// Initialize Buffers
+	CBinit(TxBuffer+id);
+	CBinit(RxBuffer+id);
 
 }
 
@@ -154,7 +149,7 @@ __ISR__ UART1_RX_TX_IRQHandler(void){
 
 	if(UART1->S1 & UART_S1_TDRE_MASK) {	
 		if (!CBisEmpty(TxBuffer + 1)) {
-			uint8_t data = CBgetByte(TxBuffer);
+			uint8_t data = CBgetByte(TxBuffer + 1);
 			UART1->D = data;		// flag cleaned when writing in D buffer
 		}
 		else {

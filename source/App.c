@@ -15,7 +15,7 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-
+#define UART_ID		1
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
@@ -34,21 +34,23 @@
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
 {
-	//uart_cfg_t cfg = {.MSBF = true, .baudrate = 9600, .parity = false};
-	//uartInit(1, cfg);
 	gpioMode(PIN_LED_RED, OUTPUT);
 	gpioWrite(PIN_LED_RED, HIGH);
+
+	uart_cfg_t cfg = {.MSBF = false, .baudrate = 9600, .parity = NO_PARITY};
+	uartInit(UART_ID, cfg);
+	
 	timerInit();
+	uartWriteMsg(UART_ID, "Xola\n", 5);
 }
 
 /* Función que se llama constantemente en un ciclo infinito */
 void App_Run (void)
 {
-	gpioWrite(PIN_LED_RED, LOW);
-
-	timerDelay(TIMER_MS2TICKS(500));
-	gpioWrite(PIN_LED_RED, HIGH);
-	timerDelay(TIMER_MS2TICKS(500));
+	if (uartIsTxMsgComplete(UART_ID)) {
+		gpioToggle(PIN_LED_RED);
+		uartWriteMsg(UART_ID, "Xola\n", 5);
+	}
 }
 
 
