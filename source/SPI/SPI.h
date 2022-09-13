@@ -33,7 +33,7 @@ typedef struct {
   uint8_t Baud_rate_scaler    :4 ;  // Baud Rate Scaler (Reference Manual Page 1492)   
   
   // TODO: Completar los bits faltantes
-  uint8_t unused :7 ;
+  uint8_t unused :3 ;
 
 } SPI_config_t;
 
