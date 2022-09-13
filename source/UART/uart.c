@@ -46,8 +46,7 @@ enum { PA, PB, PC, PD, PE };
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
  ******************************************************************************/
 
-// +ej: static void falta_envido (int);+
-
+static void UART_Rx_Tx_IRQ(uint8_t id);
 
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
@@ -58,8 +57,11 @@ static PORT_Type* const portPtr[] = PORT_BASE_PTRS;
 
 static uint32_t UARTClockSource[] = {CORE_CLOCK, CORE_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK};
 
+static __IO uint32_t* UARTSIMR[] = {&(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC1)};
+static uint32_t UARTSIMMask[] = {SIM_SCGC4_UART0_MASK, SIM_SCGC4_UART1_MASK, SIM_SCGC4_UART2_MASK, SIM_SCGC4_UART3_MASK, SIM_SCGC1_UART4_MASK};
+
 static const IRQn_Type UART_RX_TX_Vectors[] = UART_RX_TX_IRQS;
-static const IRQn_Type UART_ERR_Vectors[] = UART_ERR_IRQS;
+//static const IRQn_Type UART_ERR_Vectors[] = UART_ERR_IRQS;
 
 static const uint8_t UARTPinPort[] = {PB, PC, PD, PB, PE};
 
@@ -75,6 +77,35 @@ static circularBuffer TxBuffer[UART_CANT_IDS];
 static circularBuffer RxBuffer[UART_CANT_IDS];
 
 static bool TxOn[UART_CANT_IDS];
+
+/*******************************************************************************
+ *******************************************************************************
+                        LOCAL FUNCTION DEFINITIONS
+ *******************************************************************************
+ ******************************************************************************/
+
+static void UART_Rx_Tx_IRQ(uint8_t id) {
+
+	if(UARTPorts[id]->S1 & UART_S1_TDRE_MASK) {		// Interrupcion por buffer vacio
+		if (!CBisEmpty(TxBuffer + id)) {
+			uint8_t data = CBgetByte(TxBuffer + id);
+			UARTPorts[id]->D = data;		// flag cleaned when writing in D buffer
+		}
+		else {
+			// Turn off transmiter
+			UARTPorts[id]->C2 &= ~UART_C2_TE(1);
+
+//			UARTPorts[id]->D = 0;	//TODO: Ver si esta bien
+			UARTPorts[id]->C2 &= ~UART_C2_TIE_MASK;		// Disable Interrupt	// TODO: Ver si esta bien
+
+
+		}
+	}
+	if (UARTPorts[id]->S1 & UART_S1_RDRF_MASK) {	// Interrupcion por Receptor
+		CBputByte(RxBuffer + id, UARTPorts[id]->D);
+	}
+
+}
 
 /*******************************************************************************
  *******************************************************************************
@@ -95,7 +126,8 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 // Clock Gating
 
 	uint32_t clkFreq = UARTClockSource[id];
-	SIM->SCGC4 |= SIM_SCGC4_UART1_MASK;
+	*(UARTSIMR[id]) |= UARTSIMMask[id];
+
 
 // Pinout setup
 
@@ -132,10 +164,14 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 	uart->C1 = UART_C1_PE(config.parity != NO_PARITY) | UART_C1_PT(config.parity == ODD_PARITY) | UART_C1_M(config.parity != NO_PARITY);	// Borra los demas flags
 	// Habilitar Rx e interrupciones
 	//uart->C2 = UART_C2_RE(1) | UART_C2_TIE(1) | UART_C2_TCIE(1) | UART_C2_RE(1);	// | UART_C2_TE(1) 		// Borra los demas flags
-	uart->C2 = UART_C2_TIE(1);
+	uart->C2 = UART_C2_RIE_MASK | UART_C2_RE_MASK;
 	TxOn[id] = false;
 	// Habilita interrupcion por Parity Error y Overrun
 	//uart->C3 = UART_C3_ORIE(1) | UART_C3_PEIE(1);		// Borra los otros flags
+
+
+	////// TEST //////////
+//	UARTPorts[id]->C1 |= UART_C1_LOOPS_MASK;
 
 
 // Initialize Buffers
@@ -145,40 +181,27 @@ void uartInit (uint8_t id, uart_cfg_t config) {
 }
 
 
-__ISR__ UART1_RX_TX_IRQHandler(void){
 
-	if(UART1->S1 & UART_S1_TDRE_MASK) {	
-		if (!CBisEmpty(TxBuffer + 1)) {
-			uint8_t data = CBgetByte(TxBuffer + 1);
-			UART1->D = data;		// flag cleaned when writing in D buffer
-		}
-		else {
-			// Turn off transmiter 
-			UART1->C2 &= ~UART_C2_TE(1);
-		}
-	}
-	else if (UART1->S1 & UART_S1_RDRF_MASK) {
-		CBputByte(RxBuffer + 1, UART1->D);
-	}
+__ISR__ UART0_RX_TX_IRQHandler(void){
+	UART_Rx_Tx_IRQ(0);
 }
 
-/*
-__ISR__ UART0_RX_TX_IRQHandler(void){
-	
+__ISR__ UART1_RX_TX_IRQHandler(void){
+	UART_Rx_Tx_IRQ(1);
 }
 
 __ISR__ UART2_RX_TX_IRQHandler(void){
-	
+	UART_Rx_Tx_IRQ(2);
 }
 
 __ISR__ UART3_RX_TX_IRQHandler(void){
-	
+	UART_Rx_Tx_IRQ(3);
 }
 
 __ISR__ UART4_RX_TX_IRQHandler(void){
-	
+	UART_Rx_Tx_IRQ(4);
 }
-*/
+
 
 /**
  * @brief Check if a new byte was received
@@ -233,9 +256,10 @@ uint8_t uartWriteMsg(uint8_t id, const char* msg, uint8_t cant) {
 
 	// TxOn[id] = true;
 
-	UARTPorts[id]->C2 |= UART_C2_TE(1);
-
 	UARTPorts[id]->D = CBgetByte(TxBuffer+id);
+
+	UARTPorts[id]->C2 |= UART_C2_TE_MASK | UART_C2_TIE_MASK;
+
 
 	return CBgetBufferState(TxBuffer+id);
 

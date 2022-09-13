@@ -16,7 +16,7 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-#define ENABLE_TP		// Enable Testpoint to check Interruption time
+//#define ENABLE_TP		// Enable Testpoint to check Interruption time
 
 #ifdef ENABLE_TP
 #include "MCAL/gpio.h"

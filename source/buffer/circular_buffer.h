@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define BUFFER_SIZE 256  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
+#define BUFFER_SIZE 32  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
 
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
@@ -55,7 +55,7 @@ void CBputChain(circularBuffer * CB, const void * data, uint8_t bytesLen);
  * @brief push a byte into the buffer
  * @param circularBuffer type, data
  */
-void CBputChar(circularBuffer * CB, uint8_t ch);
+void CBputByte(circularBuffer * CB, uint8_t by);
 
 /**
  * @brief gets a byte from the buffer
