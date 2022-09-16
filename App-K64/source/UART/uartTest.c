@@ -7,16 +7,15 @@
 /*******************************************************************************
  * INCLUDE HEADER FILES
  ******************************************************************************/
-
-#include "I2Cm/I2Cm.h"
-
+#include "UART/uart.h"
+#include "MCAL/gpio.h"
+#include "timer/timer.h"
+#include "MCAL/board.h"
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-#define I2C_ID		I2C_0
-
-#define I2C_ADDR	0b0101011
+#define UART_ID		0
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
@@ -28,6 +27,9 @@
  *******************************************************************************
  ******************************************************************************/
 
+uint8_t cont[] = {0, 0, 0};
+
+tim_id_t timer;
 
 /*******************************************************************************
  *******************************************************************************
@@ -38,14 +40,45 @@
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
 {
-	I2CmInit(I2C_ID);
-	I2CmStartTransaction(I2C_ID, I2C_ADDR, 0, 0, 0, 0);
+	gpioMode(PIN_LED_RED, OUTPUT);
+	gpioMode(PIN_LED_GREEN, OUTPUT);
+
+	gpioWrite(PIN_LED_RED, HIGH);
+	gpioWrite(PIN_LED_GREEN, HIGH);
+
+	uart_cfg_t cfg = {.MSBF = false, .baudrate = 9600, .parity = NO_PARITY};
+	uartInit(UART_ID, cfg);
+	
+	timerInit();
+	timer = timerGetId();
+	uartWriteMsg(UART_ID, "Xola\r\n", 6);
+	timerStart(timer, TIMER_MS2TICKS(500), TIM_MODE_PERIODIC, NULL);
 }
 
 /* Función que se llama constantemente en un ciclo infinito */
 void App_Run (void)
 {
+	if (timerExpired(timer)) {
+		if (uartIsTxMsgComplete(UART_ID)) {
+			gpioToggle(PIN_LED_RED);
+			char str[] = "x,y,z\r\n";
+			str[0] = '0' + cont[0]++%10;
+			str[2] = '0' + cont[1]++%8;
+			str[4] = '0' + cont[2]++%4;
+			uartWriteMsg(UART_ID, str, 7);
+		}
+	}
 
+	while (uartIsRxMsg(UART_ID)) {
+		char c;
+		uartReadMsg(UART_ID, &c, 1);
+		if (c == '3') {
+			gpioWrite(PIN_LED_GREEN, LOW);
+		}
+		else if (c == '7') {
+			gpioWrite(PIN_LED_GREEN, HIGH);
+		}
+	}
 }
 
 

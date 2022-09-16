@@ -20,12 +20,12 @@
  ******************************************************************************/
 
 
-
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
 
-typedef uint8_t I2CPort_t;
+// I2C_Acc uses I2C_0 with specific pins
+typedef enum {I2C_0, I2C_1, I2C_2, I2C_ACC} I2CPort_t;
 
 /*******************************************************************************
  * VARIABLE PROTOTYPES WITH GLOBAL SCOPE
@@ -40,17 +40,19 @@ typedef uint8_t I2CPort_t;
 
 /**
  * @brief Inicializa el modulo I2C
- * @param id: Instancia del I2C
+ * @param id: Instancia del I2C [0 - 1]
 */
 void I2CmInit(I2CPort_t id);
 
 /**
- * @brief Inicializa el modulo I2C
- * @param param1 Descripcion parametro 1
- * @param param2 Descripcion parametro 2
- * @return Descripcion valor que devuelve
+ * @brief realiza una transmision y recepcion po I2C
+ * @param address address del slave
+ * @param writeBuffer buffer de escritura
+ * @param writeSize Tamano del buffer de escritura
+ * @param readBuffer buffer para guardar la lectura
+ * @param readSize Tamano del buffer de lectura
 */
-void I2CmStartTransaction(uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize);
+void I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize);
 
 
 /*******************************************************************************

@@ -55,10 +55,10 @@ static void UART_Rx_Tx_IRQ(uint8_t id);
 static UART_Type* const UARTPorts[] = UART_BASE_PTRS;
 static PORT_Type* const portPtr[] = PORT_BASE_PTRS;
 
-static uint32_t UARTClockSource[] = {CORE_CLOCK, CORE_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK};
+static const uint32_t UARTClockSource[] = {CORE_CLOCK, CORE_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK, BUS_CLOCK};
 
-static __IO uint32_t* UARTSIMR[] = {&(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC1)};
-static uint32_t UARTSIMMask[] = {SIM_SCGC4_UART0_MASK, SIM_SCGC4_UART1_MASK, SIM_SCGC4_UART2_MASK, SIM_SCGC4_UART3_MASK, SIM_SCGC1_UART4_MASK};
+static __IO uint32_t* const UARTSIMR[] = {&(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC4), &(SIM->SCGC1)};
+static const uint32_t UARTSIMMask[] = {SIM_SCGC4_UART0_MASK, SIM_SCGC4_UART1_MASK, SIM_SCGC4_UART2_MASK, SIM_SCGC4_UART3_MASK, SIM_SCGC1_UART4_MASK};
 
 static const IRQn_Type UART_RX_TX_Vectors[] = UART_RX_TX_IRQS;
 //static const IRQn_Type UART_ERR_Vectors[] = UART_ERR_IRQS;
@@ -92,13 +92,9 @@ static void UART_Rx_Tx_IRQ(uint8_t id) {
 			UARTPorts[id]->D = data;		// flag cleaned when writing in D buffer
 		}
 		else {
-			// Turn off transmiter
-			UARTPorts[id]->C2 &= ~UART_C2_TE(1);
+			UARTPorts[id]->C2 &= ~UART_C2_TE(1);		// Turn off transmiter
 
-//			UARTPorts[id]->D = 0;	//TODO: Ver si esta bien
 			UARTPorts[id]->C2 &= ~UART_C2_TIE_MASK;		// Disable Interrupt	// TODO: Ver si esta bien
-
-
 		}
 	}
 	if (UARTPorts[id]->S1 & UART_S1_RDRF_MASK) {	// Interrupcion por Receptor
