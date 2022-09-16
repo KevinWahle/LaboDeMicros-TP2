@@ -26,9 +26,10 @@
 #define PCS3_PORT(spi_n) (((spi_n)==SPI_0)? PC: PE)
 #define PCS4_PORT(spi_n) (PC)
 #define PCS5_PORT(spi_n) (PB)
-#define PSCK_PORT(spi_n) (((spi_n)==SPI_0)? PC: ((spi_n)==SPI_1)? PE: PB)   //PTC5, PTE2, PTB21
-#define PSOUT_PORT(spi_n) (((spi_n)==SPI_0)? PC: ((spi_n)==SPI_1)? PE: PB)  //PTC6, PTE1, PTB22 
-#define PSIN_PORT(spi_n) (((spi_n)==SPI_0)? PC: ((spi_n)==SPI_1)? PE: PB)   //PTC7, PTE3, PTB23
+																			//SPI_0 SPI_1 SPI_2
+#define PSCK_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)   //PTD1, PTE2, PTB21
+#define PSOUT_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)  //PTD2, PTE1, PTB22
+#define PSIN_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)   //PTD3, PTE3, PTB23
 
 #define PCS0_PIN(spi_n) (((spi_n)==SPI_0)? 4: ((spi_n)==SPI_1)? 4: 20) 
 #define PCS1_PIN(spi_n) (((spi_n)==SPI_0)? 3: 0)
@@ -36,9 +37,9 @@
 #define PCS3_PIN(spi_n) (((spi_n)==SPI_0)? 1: 6)
 #define PCS4_PIN(spi_n) (0)
 #define PCS5_PIN(spi_n) (23)
-#define PSCK_PIN(spi_n) (((spi_n)==SPI_0)? 5: ((spi_n)==SPI_1)? 2: 21)
-#define PSOUT_PIN(spi_n) (((spi_n)==SPI_0)? 6: ((spi_n)==SPI_1)? 1: 22)
-#define PSIN_PIN(spi_n) (((spi_n)==SPI_0)? 7: ((spi_n)==SPI_1)? 3: 23) 
+#define PSCK_PIN(spi_n) (((spi_n)==SPI_0)? 1: ((spi_n)==SPI_1)? 2: 21)
+#define PSOUT_PIN(spi_n) (((spi_n)==SPI_0)? 2: ((spi_n)==SPI_1)? 1: 22)
+#define PSIN_PIN(spi_n) (((spi_n)==SPI_0)? 3: ((spi_n)==SPI_1)? 3: 23)
 
 #define PCS0_ALT (ALTERNATIVE_2)
 #define PCS1_ALT (ALTERNATIVE_2)
@@ -127,7 +128,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) ); 
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) ); 	//TODO: PCSIS pa todos y todas
 
 	// TCR Setup
 	SPIPtrs[SPI_n]->TCR |= SPI_TCR_SPI_TCNT(0);
