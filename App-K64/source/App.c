@@ -27,7 +27,7 @@
  *******************************************************************************
  ******************************************************************************/
 
-uint8_t cont = 0;
+uint8_t cont[] = {0, 0, 0};
 
 tim_id_t timer;
 
@@ -61,9 +61,11 @@ void App_Run (void)
 	if (timerExpired(timer)) {
 		if (uartIsTxMsgComplete(UART_ID)) {
 			gpioToggle(PIN_LED_RED);
-			char str[] = "Hola i\r\n";
-			str[5] = '0' + cont++%10;
-			uartWriteMsg(UART_ID, str, 8);
+			char str[] = "x,y,z\r\n";
+			str[0] = '0' + cont[0]++%10;
+			str[2] = '0' + cont[1]++%8;
+			str[4] = '0' + cont[2]++%4;
+			uartWriteMsg(UART_ID, str, 7);
 		}
 	}
 
