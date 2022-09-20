@@ -13,7 +13,7 @@
 #include "MK64F12.h"
 #include "hardware.h"
 #include "SPI.h"
-#include "../buffer/circular_buffer.h"
+#include "../buffer/SPI_buffer.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -279,7 +279,7 @@ void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 	}
 }
 
-__ISR__ SPI0_IRQHandler(){
+/*__ISR__ SPI0_IRQHandler(){
 	uint16_t temp;
  	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
  		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
@@ -310,7 +310,7 @@ __ISR__ SPI0_IRQHandler(){
  		}
 				
  	}
- }
+ }*/
 
 /*__ISR__ SPI0_IRQHandler(){				//Only for SPI_0, PCS0
 	uint16_t temp;
@@ -332,47 +332,37 @@ __ISR__ SPI0_IRQHandler(){
 	}
 }*/
 
-/* 
-void SPISend(package* transfers, uint8_t len, uint8_t PCS){
+
+void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 	if(CBisEmpty(&TxBuffer)){
 		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
-		CBputChain(&TxBuffer, transfers+1, len-1);
-		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(transfers[0]) | SPI_PUSHR_PCS(1)<<PCS);
+		CBputChain(&TxBuffer, data+1, len-1);											// Buffereamos los mensajes
+		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(data[0].msg | SPI_PUSHR_PCS(1)<<PCS);	// Ponemos el primer mensaje
 	}
 	else {
-		CBputChain(&TxBuffer, transfers, len);
+		CBputChain(&TxBuffer, data, len);
 	}
 }
-*/
 
-/*
 __ISR__ SPI0_IRQHandler(){
- 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
+	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
  		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
+ 		
+		static package pckgAux = CBgetPckg(&TxBuffer[SPI_0]);
+
+		if(pckgAux.read){
+			*(pckgAux.pSave)=(uint8_t) SPIPtrs[SPI_0]->POPR;
+		}
 
  		if(!CBisEmpty(&TxBuffer)){
  			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
- 			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetPckg(&TxBuffer[SPI_0]));
- 			if(CBisEmpty(&TxBuffer))
- 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;
+ 			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(pckgAux.msg); //Actualizo lo prox a enviar
+ 			
+			if(CBisEmpty(&TxBuffer))	// TODO: Checkear como apagar PCs.
+ 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;	
  		}
-
-		if(CB)
- 		CBputByte(&RxBuffer[SPI_0], (uint8_t) SPIPtrs[SPI_0]->POPR);
-	
  	}
 }
-*/
-
-// void transfer(){}
-
-// TX  ESCritra  ADDRESS va
-// RX  caca	  caca	 caca
-
-// Tx	LECTURa  address ---	---
-// RX  caca	 caca	 caca	valor
-
-// APAGAR PCS en la interrupcion
 
 
 

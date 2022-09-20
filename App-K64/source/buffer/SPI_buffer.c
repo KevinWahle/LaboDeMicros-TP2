@@ -4,58 +4,60 @@
   @author   Grupo 5
  ******************************************************************************/
 
-#include "circular_buffer.h"
+#include "SPI_buffer.h"
 #include <stdint.h>
 #include <stdbool.h>
 
+package pckgNULL={.msg=0, .pSave=NULL, .read=0};
+
 static uint8_t getCircularPointer(uint8_t index){
-	return index % BUFFER_SIZE;
+	return index % SPIBUFFER_SIZE;
 }
 
-void CBinit(circularBuffer * CB){
+void CBinit(SPIBuffer * CB){
 	CB->head = 0;
 	CB->tail = 0;
 }
 
-bool CBisEmpty(circularBuffer * CB){
+bool CBisEmpty(SPIBuffer * CB){
 	return CB->head == CB->tail;
 }
 
-void CBputChain(circularBuffer * CB, const void * data, uint8_t bytesLen){
-	for (uint8_t i = 0; i < bytesLen; ++i) {
-		CB->buffer[CB->head] = ((uint8_t*)data)[i];
+void CBputChain(SPIBuffer * CB, package *data, uint8_t Len){
+	for (uint8_t i = 0; i < Len; ++i) {
+		(CB->buffer[CB->head])=data[i];
+
 		CB->head = getCircularPointer(++CB->head);
 	}
 }
 
-void CBputByte(circularBuffer * CB, uint8_t by){
-	CB->buffer[CB->head] = by;
+void CBputByte(SPIBuffer * CB, package* pckg){
+	CB->buffer[CB->head]=pckg;
+
 	CB->head = getCircularPointer(++CB->head);
 }
 
-uint8_t CBgetByte(circularBuffer * CB){
+package CBgetPckg(SPIBuffer * CB){
 	if(CB->head != CB->tail){
-		uint8_t data = CB->buffer[CB->tail];
+		package data = CB->buffer[CB->tail];
 		CB->tail = getCircularPointer(++CB->tail);
 		return data;
 	}
-	return 0;
+	return pckgNULL;
 }
 
-uint8_t CBgetBufferState(circularBuffer * CB){
+uint8_t CBgetBufferState(SPIBuffer * CB){
 	if(CB->head >= CB->tail)
 		return CB->head - CB->tail;
 	else
-		return BUFFER_SIZE - CB->tail + CB->head;
+		return SPIBUFFER_SIZE - CB->tail + CB->head;
 }
-/*
-const uint8_t * CBgetData(circularBuffer * CB, uint8_t bytesLen){
-}
-*/
-void CBreset(circularBuffer * CB){
-	for (uint8_t i= 0; i < BUFFER_SIZE; ++i){
-		CB->buffer[i] = 0;
+
+void CBreset(SPIBuffer * CB){
+	for (uint8_t i= 0; i < SPIBUFFER_SIZE; ++i){
+		CB->buffer[i]=pckgNULL;
 	}
+
 	CB->tail = 0;
 	CB->head = 0;
 }

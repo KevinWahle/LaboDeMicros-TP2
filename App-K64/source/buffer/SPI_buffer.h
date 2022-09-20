@@ -5,8 +5,8 @@
  ******************************************************************************/
 
 
-#ifndef _CIRCULAR_BUFFER_H_
-#define _CIRCULAR_BUFFER_H_
+#ifndef _SPI_BUFFER_H_
+#define _SPI_BUFFER_H_
 
 
 /*******************************************************************************
@@ -15,19 +15,26 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define BUFFER_SIZE 32  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
+#define SPIBUFFER_SIZE 32  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
 
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
 
 typedef struct{
-	uint8_t buffer[BUFFER_SIZE];
+	package buffer[SPIBUFFER_SIZE];
 
 	//private
 	uint8_t head;
 	uint8_t tail;
-} circularBuffer;
+} SPIBuffer;
+
+typedef struct{
+	uint8_t msg;
+	uint8_t* pSave;		//Puntero donde se guarda lo leído
+	uint8_t read	:1;
+	//Agregar start y end de la transmision para gestionar PCs
+} package;
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
@@ -35,58 +42,58 @@ typedef struct{
 
 /**
  * @brief builder
- * @param circularBuffer type
+ * @param SPIBuffer type
  */
-void CBinit(circularBuffer * CB);
+void CBinit(SPIBuffer * CB);
 
 /**
  * @brief tells you whether there is new data
- * @param circularBuffer type
+ * @param SPIBuffer type
  */
-bool CBisEmpty(circularBuffer * CB);
+bool CBisEmpty(SPIBuffer * CB);
 
 /**
  * @brief push a string into the buffer
- * @param circularBuffer type, data, data length in bytes
+ * @param SPIBuffer type, data, data length in bytes
  */
-void CBputChain(circularBuffer * CB, const void * data, uint8_t bytesLen);
+void CBputChain(SPIBuffer * CB, package *data, uint8_t bytesLen);
 
 /**
  * @brief push a byte into the buffer
- * @param circularBuffer type, data
+ * @param SPIBuffer type, data
  */
-void CBputByte(circularBuffer * CB, uint8_t by);
+void CBputByte(SPIBuffer * CB, uint8_t by);
 
 /**
  * @brief gets a byte from the buffer
  * @param circularBuffer type
  * @return the byte or BUFFER_FULL special byte
  */
-uint8_t CBgetByte(circularBuffer * CB);
+package CBgetPckg(SPIBuffer * CB);
 
 /**
  * @brief tells you the amount of unread bytes
- * @param circularBuffer type
+ * @param SPIBuffer type
  */
-uint8_t CBgetBufferState(circularBuffer * CB);
+uint8_t CBgetBufferState(SPIBuffer * CB);
 
 /** UNIMPLEMENTED
  * @brief gets a chain of bytes
  * @param
  */
 
-//const uint8_t *  CBgetData(circularBuffer * CB, uint8_t bytesLen);
+//const uint8_t *  CBgetData(SPIBuffer * CB, uint8_t bytesLen);
 
 /**
  * @brief Set all bytes to 0
  * @param circularBuffer type
  */
-void CBreset(circularBuffer * CB);
+void CBreset(SPIBuffer * CB);
 
 /*******************************************************************************
  ******************************************************************************/
 
-#endif // _CIRCULAR_BUFFER_H_
+#endif // _SPI_BUFFER_H_
 
 
 
