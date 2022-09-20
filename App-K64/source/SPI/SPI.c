@@ -9,37 +9,44 @@
  * INCLUDE HEADER FILES
  ******************************************************************************/
 
-#include "gpio.h"
+#include "../MCAL/gpio.h"
 #include "MK64F12.h"
 #include "hardware.h"
 #include "SPI.h"
+#include "../buffer/circular_buffer.h"
+
 #include <stdint.h>
+#include <stdio.h>
+
 // +Incluir el header propio (ej: #include "template.h")+
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-#define PCS0_PORT(spi_n) (((spi_n)==SPI_0)? PC: ((spi_n)==SPI_1)? PE: PB)
-#define PCS1_PORT(spi_n) (((spi_n)==SPI_0)? PC: PE)
-#define PCS2_PORT(spi_n) (((spi_n)==SPI_0)? PC: PE)
-#define PCS3_PORT(spi_n) (((spi_n)==SPI_0)? PC: PE)
-#define PCS4_PORT(spi_n) (PC)
-#define PCS5_PORT(spi_n) (PB)
 																			//SPI_0 SPI_1 SPI_2
 #define PSCK_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)   //PTD1, PTE2, PTB21
 #define PSOUT_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)  //PTD2, PTE1, PTB22
 #define PSIN_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)   //PTD3, PTE3, PTB23
 
-#define PCS0_PIN(spi_n) (((spi_n)==SPI_0)? 4: ((spi_n)==SPI_1)? 4: 20) 
-#define PCS1_PIN(spi_n) (((spi_n)==SPI_0)? 3: 0)
-#define PCS2_PIN(spi_n) (((spi_n)==SPI_0)? 2: 5)
-#define PCS3_PIN(spi_n) (((spi_n)==SPI_0)? 1: 6)
-#define PCS4_PIN(spi_n) (0)
-#define PCS5_PIN(spi_n) (23)
 #define PSCK_PIN(spi_n) (((spi_n)==SPI_0)? 1: ((spi_n)==SPI_1)? 2: 21)
 #define PSOUT_PIN(spi_n) (((spi_n)==SPI_0)? 2: ((spi_n)==SPI_1)? 1: 22)
 #define PSIN_PIN(spi_n) (((spi_n)==SPI_0)? 3: ((spi_n)==SPI_1)? 3: 23)
+
+																			//SPI_0  SPI_1  SPI_2
+#define PCS0_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)	//PTD0   PTE4	PTB20
+#define PCS1_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PD)	//PTD4   PTE0	PTD15
+#define PCS2_PORT(spi_n) (((spi_n)==SPI_0)? PD: PE)							//PTD5   PTE5	  -
+#define PCS3_PORT(spi_n) (((spi_n)==SPI_0)? PD: PE)							//PTD6   PTE6	  -
+#define PCS4_PORT(spi_n) (PC)												//PTC0    -		  -
+#define PCS5_PORT(spi_n) (PB)												//PTB23   -		  -
+
+#define PCS0_PIN(spi_n) (((spi_n)==SPI_0)? 0: ((spi_n)==SPI_1)? 4: 20)
+#define PCS1_PIN(spi_n) (((spi_n)==SPI_0)? 4: ((spi_n)==SPI_1)? 0: 15)
+#define PCS2_PIN(spi_n) (((spi_n)==SPI_0)? 5: 5)
+#define PCS3_PIN(spi_n) (((spi_n)==SPI_0)? 6: 6)
+#define PCS4_PIN(spi_n) (0)
+#define PCS5_PIN(spi_n) (23)
 
 #define PCS0_ALT (ALTERNATIVE_2)
 #define PCS1_ALT (ALTERNATIVE_2)
@@ -83,6 +90,11 @@ static void PinConfig (uint8_t pin, uint8_t mux_alt, uint8_t interrupt_alt, uint
 // Configura los PCRs de todos los PCS del puerto pedido
 static void PCSInit(uint8_t SPI_n);
 
+static circularBuffer TxBuffer[SPI_2];
+static circularBuffer RxBuffer[SPI_2];
+
+static bool flagRx;
+static bool flagTx;
 
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
@@ -122,39 +134,47 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 		PinsConfigMaster(SPI_n);
 	}
 	else{
-		//Mostro, no va a pasar nada xd
+		//No estamos preparados para esto
 	}
 
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) ); 	//TODO: PCSIS pa todos y todas
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) ); 	//TODO: PCSIS pa todos
 
 	// TCR Setup
-	SPIPtrs[SPI_n]->TCR |= SPI_TCR_SPI_TCNT(0);
+	SPIPtrs[SPI_n]->TCR &= SPI_TCR_SPI_TCNT(0);
 	
 	// CTAR Setup
 	SPIPtrs[SPI_n]->CTAR[0] = 0x0; 	//Reset CTAR
 	
 	if(config->type){		// Master Mode
-		SPIPtrs[SPI_n]->CTAR[0] = (SPI_CTAR_DBR(0) | SPI_CTAR_FMSZ(config->frame_size-1) | 
-				SPI_CTAR_CPOL(config->clk_pol) | SPI_CTAR_CPHA(config->clk_phase) | 
-				SPI_CTAR_LSBFE(config->LSB_fist) | SPI_CTAR_BR(config->Baud_rate_scaler));
-	} 
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_DBR(0);
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_FMSZ(config->frame_size-1);
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_CPOL(config->clk_pol);
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_CPHA(config->clk_phase);
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_LSBFE(config->LSB_fist);
+		SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_BR(config->Baud_rate_scaler);
+	}
 	
 	else {					// Slave Mode
 		SPIPtrs[SPI_n]->CTAR_SLAVE[0] = (SPI_CTAR_FMSZ(config->frame_size-1) | SPI_CTAR_CPOL(config->clk_pol) | 
 										SPI_CTAR_CPHA(config->clk_phase));
 	}
+	SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_ASC(0b0111);
 
 	// SR Setup
-	SPIPtrs[SPI_n]->SR |= SPI_SR_EOQF(1) | SPI_SR_RXCTR(1) | SPI_SR_TXCTR(1) | SPI_SR_TCF(1);
+	//SPIPtrs[SPI_n]->SR |= SPI_SR_EOQF(1) | SPI_SR_RXCTR(1) | SPI_SR_TXCTR(1) | SPI_SR_TCF(1);
+	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
 
 	// RSER Setup
-	// TODO: Por el momento es sin interrupciones, pero se puede mejorar
+	SPIPtrs[SPI_n]->RSER |= SPI_RSER_TCF_RE(1);
 
 	// PUSHR Setup
 	SPIPtrs[SPI_n]->PUSHR = SPI_PUSHR_CTAS(0);
+
+	CBinit(TxBuffer);
+	CBinit(RxBuffer);
 
 	// Enable SPI
 	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
@@ -243,18 +263,117 @@ void PCSInit(uint8_t SPI_n){
 	}
 }
 
-
-bool SPITransferCompleteFlag(uint8_t SPI_n){
-	return (SPIPtrs[SPI_n]->SR & SPI_SR_TCF(1));
-}
-
-
 uint32_t SPIRead(uint8_t SPI_n){
-	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
+//	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
+	flagRx=1;
+	SPIPtrs[SPI_n]->POPR;
 	return SPIPtrs[SPI_n]->POPR;
 }
 
-void SPIWrite(uint8_t SPI_n, uint16_t msg, uint8_t PCS){
-	SPIPtrs[SPI_n]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
-	SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(msg) | SPI_PUSHR_PCS(1)<<PCS; 
+void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
+	if (msg!=NULL){
+		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
+		CBputChain(&TxBuffer, msg, bytes);
+		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_n])) | SPI_PUSHR_PCS(1)<<PCS;
+		flagTx=1;
+	}
 }
+
+__ISR__ SPI0_IRQHandler(){
+	uint16_t temp;
+ 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
+ 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
+
+ 		if(CBisEmpty(TxBuffer))
+ 			flagTx=0;
+			
+ 		if(flagTx || flagRx){
+ 			if (flagTx){
+ 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
+ 				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_0]));
+				flagRx=1;
+ 			}
+ 			if(flagRx){
+				SPIPtrs[SPI_0]->POPR; //Leo basura
+				temp=SPIPtrs[SPI_0]->POPR;
+				if (!temp){											//Si esta vacío es porque no me llego nada
+					flagRx=0;
+				}
+				else{
+					if (!flagTx){									//Si no escribí nada, hago fluir para leer
+						SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
+ 						SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(0);
+					}
+ 					CBputByte(&RxBuffer[SPI_0], (uint8_t)temp);
+				}
+ 			}
+ 		}
+				
+ 	}
+ }
+
+/*__ISR__ SPI0_IRQHandler(){				//Only for SPI_0, PCS0
+	uint16_t temp;
+ 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
+ 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
+		switch(mode){
+			case WRITE:
+				SPIPtrs[SPI_0]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
+				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_0])) | SPI_PUSHR_PCS(1)<<PCS;
+			case READ:
+				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
+ 				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(0) | SPI_PUSHR_PCS(1)<<PCS;
+				SPIPtrs[SPI_0]->POPR; //Leo basura
+				CBputByte(&RxBuffer[SPI_0], (uint8_t)SPIPtrs[SPI_0]->POPR);
+			case READWRITE:
+				
+		}
+		
+	}
+}*/
+
+/* 
+void SPISend(package* transfers, uint8_t len, uint8_t PCS){
+	if(CBisEmpty(&TxBuffer)){
+		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
+		CBputChain(&TxBuffer, transfers+1, len-1);
+		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(transfers[0]) | SPI_PUSHR_PCS(1)<<PCS);
+	}
+	else {
+		CBputChain(&TxBuffer, transfers, len);
+	}
+}
+*/
+
+/*
+__ISR__ SPI0_IRQHandler(){
+ 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
+ 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
+
+ 		if(!CBisEmpty(&TxBuffer)){
+ 			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
+ 			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetPckg(&TxBuffer[SPI_0]));
+ 			if(CBisEmpty(&TxBuffer))
+ 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;
+ 		}
+
+		if(CB)
+ 		CBputByte(&RxBuffer[SPI_0], (uint8_t) SPIPtrs[SPI_0]->POPR);
+	
+ 	}
+}
+*/
+
+// void transfer(){}
+
+// TX  ESCritra  ADDRESS va
+// RX  caca	  caca	 caca
+
+// Tx	LECTURa  address ---	---
+// RX  caca	 caca	 caca	valor
+
+// APAGAR PCS en la interrupcion
+
+
+
+
