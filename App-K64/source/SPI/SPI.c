@@ -91,10 +91,6 @@ static void PinConfig (uint8_t pin, uint8_t mux_alt, uint8_t interrupt_alt, uint
 static void PCSInit(uint8_t SPI_n);
 
 static circularBuffer TxBuffer[SPI_2];
-static circularBuffer RxBuffer[SPI_2];
-
-static bool flagRx;
-static bool flagTx;
 
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
@@ -263,13 +259,15 @@ void PCSInit(uint8_t SPI_n){
 	}
 }
 
+/*
 uint32_t SPIRead(uint8_t SPI_n){
 //	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
 	flagRx=1;
 	SPIPtrs[SPI_n]->POPR;
 	return SPIPtrs[SPI_n]->POPR;
 }
-
+*/
+/*
 void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 	if (msg!=NULL){
 		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
@@ -278,6 +276,7 @@ void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 		flagTx=1;
 	}
 }
+*/
 
 /*__ISR__ SPI0_IRQHandler(){
 	uint16_t temp;
