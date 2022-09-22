@@ -98,8 +98,32 @@ static SPI_config_t * myconfig;
                         GLOBAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
-void CANInit(){
-    CAN_bit_modify();
+void CANInit(uint8_t ID){
+    
+    CAN_BIT_MODIFY(CANCTRL_REG, 0xE0, 0x80); // Sets Configuration mode
+
+    CANWrite(TXRTSCTRL_REG,0x01); //Pin is used to request message transmission of TXB0 buffer (on falling edge)
+    CANWrite(RXB0CTRL_REG,0x60);  //Turns mask/filters off; receives any message
+
+    //TODO:
+    CANWrite(RXF0SIDH_REG, );
+    CANWrite(RXF0SIDL_REG, );
+    CANWrite(RXM0SIDH_REG, );
+    CANWrite(RXM0SIDL_REG, );
+
+    CANWrite(CNF1_REG,0xC0); //SJW=4 BRP=0
+    CAN_bit_modify(CNF2_REG,0x3F,0x2D); //PHSEG1=5 PRSEG=5      TODO:  toco el bltmode?
+    CAN_bit_modify(CNF3_REG,0x07,0x05); //PHSEG2=5
+
+    //TODO: Puse el preescaler en 1
+    CAN_BIT_MODIFY(CANCTRL_REG, 0xEF, 0x04); //Sets Normal Operation mode,One-Shot, Clock Enable and Preescaler 
+
+
+    //TODO:Hay que decidir cual de los dos usar
+    CANWrite(CANINTE_REG,0x05); //TX0IE: Transmit Buffer 0 Empty Interrupt Enable bit
+                                //RX0IE: Receive Buffer 0 Full Interrupt Enable bit
+    CANWrite(CANINTF_REG,0x05); //Transmit Buffer 0 Empty Interrupt Flag bit
+                                //RX0IF: Receive Buffer 0 Full Interrupt Flag bit
 
     //Poner en config mode ===> poner REQOP de CANCTRL en 100. 
     
