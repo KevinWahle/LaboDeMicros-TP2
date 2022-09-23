@@ -11,6 +11,7 @@
 #include "../SPI/SPI.h"
 #include "CAN.h"
 #include "../buffer/SPI_buffer.h"
+#include "../MCAL/gpio.h"
 
 
 /*******************************************************************************
@@ -20,15 +21,6 @@
 #define READ 0x03
 #define WRITE 0x02
 #define BIT_MODIFY 0x05
-
-//Registros
-#define CNF1_REG 0x2A
-#define CNF2_REG 0x29
-#define CNF3_REG 0x28
-
-#define CANCTRL_REG 0x0F
-#define CANINTF_REG 0x2C
-
 
 //Defines de direcciones de registros
 #define CNF1_REG 0x2A
@@ -55,7 +47,15 @@
 #define TXB0SIDH_REG 0x31
 #define TXB0SIDL_REG 0x32
 #define TXB0DLC_REG 0x35
+
 #define TXB0D0_REG 0x36
+#define TXB0D1_REG 0x37
+#define TXB0D2_REG 0x38
+#define TXB0D3_REG 0x39
+#define TXB0D4_REG 0x3A
+#define TXB0D5_REG 0x3B
+#define TXB0D6_REG 0x3C
+#define TXB0D7_REG 0x3D
 
 #define TXRTSCTRL_REG 0x0D
 
@@ -64,6 +64,8 @@
 #define READSIZE 4
 #define BITMODSIZE 4
 
+#define MAXBYTES 8
+#define IRQ_CAN   PORTNUM2PIN(PA,24) // PTA4
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
@@ -75,6 +77,8 @@
 
 static SPI_config_t config;
 static SPI_config_t * myconfig;
+
+uint16_t myID;
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
@@ -98,32 +102,36 @@ static SPI_config_t * myconfig;
                         GLOBAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
-void CANInit(uint8_t ID){
+void CANInit(uint16_t ID){
     
-    CAN_BIT_MODIFY(CANCTRL_REG, 0xE0, 0x80); // Sets Configuration mode
+    myID=ID; 
 
-    CANWrite(TXRTSCTRL_REG,0x01); //Pin is used to request message transmission of TXB0 buffer (on falling edge)
-    CANWrite(RXB0CTRL_REG,0x60);  //Turns mask/filters off; receives any message
+    gpioMode(IRQ_CAN, INPUT);
+    gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_RISING_EDGE, CANReceive);   //TODO: Escribirla
+
+    CANBitModify(CANCTRL_REG, 0xE0, 0x80); // Sets Configuration mode
 
     //TODO:
-    CANWrite(RXF0SIDH_REG, );
-    CANWrite(RXF0SIDL_REG, );
-    CANWrite(RXM0SIDH_REG, );
-    CANWrite(RXM0SIDL_REG, );
+    // CANWrite(RXF0SIDH_REG, );
+    // CANWrite(RXF0SIDL_REG, );
+    // CANWrite(RXM0SIDH_REG, );
+    // CANWrite(RXM0SIDL_REG, );
+
+    CANWrite(TXRTSCTRL_REG,0x01); //Pin is used to request message transmission of TXB0 buffer (on falling edge)
+    CANWrite(RXB0CTRL_REG,0x60);  //Turns mask/filters off; receives any message. TODO: Hay que recibir solos los de ID en un rango revisar RXM
 
     CANWrite(CNF1_REG,0xC0); //SJW=4 BRP=0
-    CAN_bit_modify(CNF2_REG,0x3F,0x2D); //PHSEG1=5 PRSEG=5      TODO:  toco el bltmode?
-    CAN_bit_modify(CNF3_REG,0x07,0x05); //PHSEG2=5
-
-    //TODO: Puse el preescaler en 1
-    CAN_BIT_MODIFY(CANCTRL_REG, 0xEF, 0x04); //Sets Normal Operation mode,One-Shot, Clock Enable and Preescaler 
-
+    CANBitModify(CNF2_REG,0x3F,0x2D); //PHSEG1=5 PRSEG=5      TODO:  toco el bltmode?
+    CANBitModify(CNF3_REG,0x07,0x05); //PHSEG2=5
 
     //TODO:Hay que decidir cual de los dos usar
     CANWrite(CANINTE_REG,0x05); //TX0IE: Transmit Buffer 0 Empty Interrupt Enable bit
                                 //RX0IE: Receive Buffer 0 Full Interrupt Enable bit
     CANWrite(CANINTF_REG,0x05); //Transmit Buffer 0 Empty Interrupt Flag bit
                                 //RX0IF: Receive Buffer 0 Full Interrupt Flag bit
+
+    //TODO: Puse el preescaler en 1. Si ponemos shooteo hasta que se manda el msg?
+    CANBitModify(CANCTRL_REG, 0xEF, 0x04); //Sets Normal Operation mode,One-Shot, Clock Enable and Preescaler
 
     //Poner en config mode ===> poner REQOP de CANCTRL en 100. 
     
@@ -179,8 +187,6 @@ void CANRead (uint8_t address, uint8_t* save){
   data[3].msg=0; data[3].pSave=save; data[3].read=true;
 
   SPISend(SPI_0, data, READSIZE, 0);
-
-
 }
 
 void CANBitModify(uint8_t address, uint8_t mask, uint8_t data){
@@ -192,6 +198,55 @@ void CANBitModify(uint8_t address, uint8_t mask, uint8_t data){
   data[3].msg=data; data[3].pSave=NULL; data[3].read=false;
   SPISend(SPI_0, data, READSIZE, 0);
 }
+
+
+bool CANSend(uint16_t ID, char * data, uint8_t len){
+  if (len>MAXBYTES){
+    return false;
+  }
+
+  CANBitModify(TXB0DLC_REG, 0x0F, len); //Set Length (DLC)
+  
+  //Set ID
+  uint8_t IDH=(uint8_t) ID>>3;
+  uint8_t IDL=(uint8_t) ((ID & 0x07) << 5);
+  CANBitModify(TXB0SIDH_REG, 0xFF,IDH); 
+  CANBitModify(TXB0SIDL_REG, 0XE0 ,IDL);
+
+  //Set Data
+  switch(len){
+    case 8:
+      CANWrite(TXB0D7_REG, data[7]);
+    case 7:
+      CANWrite(TXB0D6_REG, data[6]);
+    case 6:
+      CANWrite(TXB0D5_REG, data[5]);
+    case 5:
+      CANWrite(TXB0D4_REG, data[4]);
+    case 4:
+      CANWrite(TXB0D3_REG, data[3]);
+    case 3:
+      CANWrite(TXB0D2_REG, data[2]);
+    case 2:
+      CANWrite(TXB0D1_REG, data[1]);
+    case 1:
+      CANWrite(TXB0D0_REG, data[0]);
+      break;
+
+    default:
+      break;
+  }
+
+  CANBitModify(TXB0CTRL_REG, 0x08 ,0x08); //Buffer is currently pending transmission
+  //TODO: B0RTSM? B0BFM?
+
+}
+
+void CANReceive(){
+  
+
+}
+  
 /*******************************************************************************
  *******************************************************************************
                         LOCAL FUNCTION DEFINITIONS
