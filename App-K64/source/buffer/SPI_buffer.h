@@ -21,6 +21,18 @@
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
 
+typedef void (*CBType) (void);
+
+typedef struct{
+	uint8_t msg;
+	uint8_t *pSave; 	// Donde guardar data
+	CBType cb;		// Callback
+	uint8_t read		:1;
+	uint8_t cs_start	:1;
+	uint8_t cs_end		:1;
+	//TODO: Agregar start y end de la transmision para gestionar PCs
+} package;
+
 typedef struct{
 	package buffer[SPIBUFFER_SIZE];
 
@@ -28,13 +40,6 @@ typedef struct{
 	uint8_t head;
 	uint8_t tail;
 } SPIBuffer;
-
-typedef struct{
-	uint8_t msg;
-	uint8_t* pSave;		//Puntero donde se guarda lo leído
-	uint8_t read	:1;
-	//Agregar start y end de la transmision para gestionar PCs
-} package;
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
@@ -56,13 +61,13 @@ bool CBisEmpty(SPIBuffer * CB);
  * @brief push a string into the buffer
  * @param SPIBuffer type, data, data length in bytes
  */
-void CBputChain(SPIBuffer * CB, package *data, uint8_t bytesLen);
+void CBputByte(SPIBuffer * CB, package* pckg);
 
 /**
- * @brief push a byte into the buffer
- * @param SPIBuffer type, data
+ * @brief push a chain into the buffer
+ * @param SPIBuffer type, data, data length in bytes
  */
-void CBputByte(SPIBuffer * CB, uint8_t by);
+void CBputChain(SPIBuffer * CB, package *data, uint8_t Len);
 
 /**
  * @brief gets a byte from the buffer

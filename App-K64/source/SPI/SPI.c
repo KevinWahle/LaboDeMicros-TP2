@@ -13,10 +13,10 @@
 #include "MK64F12.h"
 #include "hardware.h"
 #include "SPI.h"
-#include "../buffer/SPI_buffer.h"
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 // +Incluir el header propio (ej: #include "template.h")+
 
@@ -58,7 +58,7 @@
 #define PSOUT_ALT (ALTERNATIVE_2)
 #define PSIN_ALT (ALTERNATIVE_2)
 
-
+#define MY_PCS0 PORTNUM2PIN(PE,27)
 typedef enum {PIN_DISABLE, ALTERNATIVE_1, ALTERNATIVE_2, ALTERNATIVE_3, ALTERNATIVE_4, 
 									ALTERNATIVE_5, ALTERNATIVE_6, ALTERNATIVE_7} mux_alt;
 typedef enum {OPEN_DRAIN, PUSH_PULL} pin_mode;
@@ -90,7 +90,7 @@ static void PinConfig (uint8_t pin, uint8_t mux_alt, uint8_t interrupt_alt, uint
 // Configura los PCRs de todos los PCS del puerto pedido
 static void PCSInit(uint8_t SPI_n);
 
-static circularBuffer TxBuffer[SPI_2];
+static SPIBuffer TxBuffer[SPI_2];
 
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
@@ -136,7 +136,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) ); 	//TODO: PCSIS pa todos
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) );
 
 	// TCR Setup
 	SPIPtrs[SPI_n]->TCR &= SPI_TCR_SPI_TCNT(0);
@@ -170,10 +170,12 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	SPIPtrs[SPI_n]->PUSHR = SPI_PUSHR_CTAS(0);
 
 	CBinit(TxBuffer);
-	CBinit(RxBuffer);
 
 	// Enable SPI
 	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
+
+	//TODO: Config puerto
+	gpioMode(MY_PCS0,OUTPUT);
 
 	return true;
 }
@@ -333,35 +335,58 @@ void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 
 
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
-	if(CBisEmpty(&TxBuffer)){
+	if(CBisEmpty(&(TxBuffer[SPI_0]))){
+		gpioWrite(MY_PCS0, CS_ACTIVE);		
+
 		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
-		CBputChain(&TxBuffer, data+1, len-1);											// Buffereamos los mensajes
+		CBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
 		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(data[0].msg | SPI_PUSHR_PCS(1)<<PCS);	// Ponemos el primer mensaje
 	}
 	else {
-		CBputChain(&TxBuffer, data, len);
+		CBputChain(&(TxBuffer[SPI_0]), data, len);
 	}
 }
 
 __ISR__ SPI0_IRQHandler(){
+	static package lastPckg;
+
 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
  		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
- 		
-		static package pckgAux = CBgetPckg(&TxBuffer[SPI_0]);
 
-		if(pckgAux.read){
-			*(pckgAux.pSave)=(uint8_t) SPIPtrs[SPI_0]->POPR;
+		if (lastPckg.cs_end) {						// Si el anterior pidio que apaguemos el CS
+			gpioWrite(MY_PCS0, CS_INACTIVE);		//antes de transmitir lo hacemos
+			//TODO: ponen un toque de delay minimo
+
+			if(!CBisEmpty(&(TxBuffer[SPI_0])))				// Si hay algo para enviar
+				gpioWrite(MY_PCS0, CS_ACTIVE);		// Reactivamos el PCS
+		}
+ 		
+		if(lastPckg.read){							// Leemos si el anterior pidió que hagamos
+			*(lastPckg.pSave) = (uint8_t) SPIPtrs[SPI_0]->POPR;
 		}
 
- 		if(!CBisEmpty(&TxBuffer)){
+		if(lastPckg.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
+			(lastPckg.cb)();						// TODO: revisar ejecucion del callback
+		}
+
+		package pckgAux = CBgetPckg(&(TxBuffer[SPI_0]));		// REVISAR: El static no esta al pedo?
+ 		
+		if(!CBisEmpty(&(TxBuffer[SPI_0]))){		// Podemos seguir mandando
  			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
  			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(pckgAux.msg); //Actualizo lo prox a enviar
- 			
-			if(CBisEmpty(&TxBuffer))	// TODO: Checkear como apagar PCs.
- 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;	
- 		}
+		}
+
+		else{							// No tenemos para mandar
+ 			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;
+			gpioWrite(MY_PCS0, CS_INACTIVE);
+		}
+		
+		memcpy(&lastPckg, &pckgAux, sizeof(package));
  	}
 }
+
+// Segun Santi Mangone, cada vez que escribis en el registro de PUSHR se manda algo,
+// creoque en nuestro debbugeo pasaba eso
 
 
 

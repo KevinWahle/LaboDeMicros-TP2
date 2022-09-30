@@ -12,7 +12,8 @@
 #include "CAN.h"
 #include "../buffer/SPI_buffer.h"
 #include "../MCAL/gpio.h"
-
+#include <string.h>
+#include <stdbool.h>
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
@@ -57,11 +58,21 @@
 #define TXB0D6_REG 0x3C
 #define TXB0D7_REG 0x3D
 
+#define RXB0D0_REG 0x66
+#define RXB0D1_REG 0x67
+#define RXB0D2_REG 0x68
+#define RXB0D3_REG 0x69
+#define RXB0D4_REG 0x6A
+#define RXB0D5_REG 0x6B
+#define RXB0D6_REG 0x6C
+#define RXB0D7_REG 0x6D
+
+
 #define TXRTSCTRL_REG 0x0D
 
 
 #define WRITESIZE 3
-#define READSIZE 4
+#define READSIZE 3
 #define BITMODSIZE 4
 
 #define MAXBYTES 8
@@ -73,16 +84,33 @@
 
 /*******************************************************************************
  * VARIABLES WITH GLOBAL SCOPE
- ******************************************************************************/
+static CANMsg* MSGReceive; ******************************************************************************/
 
 static SPI_config_t config;
 static SPI_config_t * myconfig;
 
-uint16_t myID;
+static uint16_t myID;
+
+static uint8_t interrupt;
+static uint8_t RXdlc;
+static uint8_t RXIDL, RXIDH;
+static uint8_t Rxdata[8];
+static CANMsg_t* MSGReceive; 
+
+static bool done;
+
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
  ******************************************************************************/
+void CANRead (uint8_t address, uint8_t* save, CBType mycb);
+void CANBitModify(uint8_t address, uint8_t mask, uint8_t data);
+void CANWrite (uint8_t address, uint8_t value);
+
+void CANReceive();
+void viewinterrupt();
+void readData();
+void readEnd ();
 
 
 /*******************************************************************************
@@ -96,15 +124,28 @@ uint16_t myID;
  ******************************************************************************/
 
 
-
 /*******************************************************************************
  *******************************************************************************
                         GLOBAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
-void CANInit(uint16_t ID){
+void SPI_init(){
+    myconfig=&config;
+    myconfig->type=MASTER;
+    myconfig->PCS_inactive_state=1;
+    myconfig->LSB_fist=0;
+    myconfig->frame_size=8;
+    myconfig->clk_pol=0;
+    myconfig->clk_phase=1;
+    myconfig->Baud_rate_scaler=15;
+
+    SPI_config(SPI_0,myconfig);
+}
+
+void CANInit(uint16_t ID, CANMsg_t* msgReceive){
     
     myID=ID; 
+    MSGReceive=msgReceive;
 
     gpioMode(IRQ_CAN, INPUT);
     gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_RISING_EDGE, CANReceive);   //TODO: Escribirla
@@ -155,52 +196,40 @@ void CANInit(uint16_t ID){
     SPI_init();
 }
 
-void SPI_init(){
-    myconfig=&config;
-    myconfig->type=MASTER;
-    myconfig->PCS_inactive_state=1;
-    myconfig->LSB_fist=0;
-    myconfig->frame_size=8;
-    myconfig->clk_pol=0;
-    myconfig->clk_phase=1;
-    myconfig->Baud_rate_scaler=15;
-
-    SPI_config(SPI_0,myconfig);
-}
-
 void CANWrite (uint8_t address, uint8_t value){
   package data[WRITESIZE];
   
-  data[0].msg=WRITE; data[0].pSave=NULL; data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[1].read=false;
-  data[2].msg=value; data[2].pSave=NULL; data[2].read=false;
+  data[0].msg=WRITE; data[0].pSave=NULL; data[0].cb=NULL ;data[0].read=false;
+  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false;
+  data[2].msg=value; data[2].pSave=NULL; data[2].cb=NULL; data[2].read=false;
 
   SPISend(SPI_0, data, WRITESIZE, 0);
 }
 
-void CANRead (uint8_t address, uint8_t* save){
+void CANRead (uint8_t address, uint8_t* save, CBType mycb){
   package data[READSIZE];
   
-  data[0].msg=READ; data[0].pSave=NULL; data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[1].read=false;
-  data[2].msg=0; data[2].pSave=NULL; data[2].read=false;
-  data[3].msg=0; data[3].pSave=save; data[3].read=true;
+  data[0].msg=READ; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false;
+  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false;
+  //data[2].msg=0; data[2].pSave=NULL; data[2].cb=NULL; data[2].read=false;
+  data[2].msg=0; data[2].pSave=save; data[2].cb=mycb; data[2].read=true;
 
   SPISend(SPI_0, data, READSIZE, 0);
 }
 
-void CANBitModify(uint8_t address, uint8_t mask, uint8_t data){
+
+void CANBitModify(uint8_t address, uint8_t mask, uint8_t value){
   package data[BITMODSIZE];
   
-  data[0].msg=BIT_MODIFY; data[0].pSave=NULL; data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[1].read=false;
-  data[2].msg=mask; data[2].pSave=NULL; data[2].read=false;
-  data[3].msg=data; data[3].pSave=NULL; data[3].read=false;
+  data[0].msg=BIT_MODIFY; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false;
+  data[1].msg=address; data[1].pSave=NULL; data[0].cb=NULL; data[1].read=false;
+  data[2].msg=mask; data[2].pSave=NULL; data[0].cb=NULL; data[2].read=false;
+  data[3].msg=value; data[3].pSave=NULL; data[0].cb=NULL; data[3].read=false;
   SPISend(SPI_0, data, READSIZE, 0);
 }
 
 
-bool CANSend(uint16_t ID, char * data, uint8_t len){
+bool CANSend(uint16_t ID, uint8_t * data, uint8_t len){
   if (len>MAXBYTES){
     return false;
   }
@@ -239,13 +268,74 @@ bool CANSend(uint16_t ID, char * data, uint8_t len){
 
   CANBitModify(TXB0CTRL_REG, 0x08 ,0x08); //Buffer is currently pending transmission
   //TODO: B0RTSM? B0BFM?
-
+  return true;
 }
 
 void CANReceive(){
+  CANBitModify(CANINTF_REG, 0x01, 0x00); //Pongo el Flag en 0
+  done=false; //Starting to receive
+  CANRead(CANINTF_REG, &interrupt, viewinterrupt);
   
+}
+
+void viewinterrupt(){
+  if ((interrupt%2)==1){  // Veo que sea la interrupcion que quiero (RX0IF)
+    CANRead(RXB0DLC_REG, &RXdlc, readData); // Veo cuantos datos tengo
+  }
 
 }
+
+void readData(){
+
+  //Read data
+  switch(RXdlc){
+    case 8:
+      CANRead(RXB0D7_REG, &Rxdata[7], NULL);
+    case 7:
+      CANRead(RXB0D6_REG, &Rxdata[6], NULL);
+    case 6:
+      CANRead(RXB0D5_REG, &Rxdata[5], NULL);
+    case 5:
+      CANRead(RXB0D4_REG, &Rxdata[4], NULL);
+    case 4:
+      CANRead(RXB0D3_REG, &Rxdata[3], NULL);
+    case 3:
+      CANRead(RXB0D2_REG, &Rxdata[2], NULL);
+    case 2:
+      CANRead(RXB0D1_REG, &Rxdata[1], NULL);
+    case 1:
+      CANRead(RXB0D0_REG, &Rxdata[0], NULL);
+      break;
+    default:
+      break;
+  }
+    //Read ID 
+    CANRead(RXB0SIDH_REG, &RXIDL, NULL);
+    CANRead(RXB0SIDL_REG, &RXIDH, readEnd);
+
+}
+
+void readEnd (){
+    MSGReceive->ID=RXIDH<<8|RXIDL;     //TODO: chequear
+    MSGReceive->length=RXdlc;
+    memcpy(MSGReceive->data, Rxdata, MAXBYTES);
+
+    //Clear all
+    RXIDL=0; RXIDH=0;
+    RXdlc=0;
+    for (int i=0; i<MAXBYTES; i++){
+      Rxdata[i]=0;
+    }
+
+    done=true; //Reception done succesfull
+}
+
+bool newMsg(){
+  bool newmsg=done;
+  done = false;
+  return newmsg;
+}
+
   
 /*******************************************************************************
  *******************************************************************************

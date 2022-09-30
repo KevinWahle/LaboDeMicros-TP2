@@ -7,6 +7,8 @@
 #include "SPI_buffer.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
 package pckgNULL={.msg=0, .pSave=NULL, .read=0};
 
@@ -25,21 +27,22 @@ bool CBisEmpty(SPIBuffer * CB){
 
 void CBputChain(SPIBuffer * CB, package *data, uint8_t Len){
 	for (uint8_t i = 0; i < Len; ++i) {
-		(CB->buffer[CB->head])=data[i];
+		memcpy(&(CB->buffer[CB->head]), &(data[i]), sizeof(package));
 
 		CB->head = getCircularPointer(++CB->head);
 	}
 }
 
 void CBputByte(SPIBuffer * CB, package* pckg){
-	CB->buffer[CB->head]=pckg;
+	memcpy( &(CB->buffer[CB->head]), &pckg, sizeof(package));
 
 	CB->head = getCircularPointer(++CB->head);
 }
 
 package CBgetPckg(SPIBuffer * CB){
 	if(CB->head != CB->tail){
-		package data = CB->buffer[CB->tail];
+		package data;
+		memcpy(&data, &(CB->buffer[CB->tail]), sizeof(package));
 		CB->tail = getCircularPointer(++CB->tail);
 		return data;
 	}

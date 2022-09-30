@@ -12,6 +12,8 @@
  * INCLUDE HEADER FILES
  ******************************************************************************/
 #include <stdbool.h>
+#include <stdint.h>
+#include "../buffer/SPI_buffer.h"
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
@@ -19,6 +21,8 @@
 typedef enum {SLAVE, MASTER} SPImode;
 typedef enum {SPI_0, SPI_1, SPI_2} SPIport;
 
+#define CS_ACTIVE	false
+#define CS_INACTIVE	!CS_ACTIVE
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
@@ -58,10 +62,7 @@ typedef struct {
 // +ej: char lcd_goto (int fil, int col);+
 
 bool SPI_config (uint8_t SPI_n, SPI_config_t * config);
-bool SPITransferCompleteFlag(uint8_t SPI_n);
-uint32_t SPIRead(uint8_t SPI_n);
-void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes);
-
+void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS);
 
 /*******************************************************************************
  ******************************************************************************/

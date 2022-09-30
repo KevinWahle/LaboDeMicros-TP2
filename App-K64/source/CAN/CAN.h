@@ -18,11 +18,20 @@
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
  ******************************************************************************/
-void CANInit();
-void CANRead (uint8_t address, uint8_t* save);
-void CANBitModify(uint8_t address, uint8_t mask, uint8_t data);
-void CANWrite (uint8_t address, uint8_t value);
+typedef struct
+{
+  uint16_t ID;
+  uint8_t length;
+  uint8_t data [8];
+}CANMsg_t;
 
+
+void CANInit(uint16_t ID, CANMsg_t* msgReceive);
+
+bool CANSend(uint16_t ID, uint8_t * data, uint8_t len);
+
+//Return true if there is a new msg. Resets de msg bool
+bool newMsg();
 /*******************************************************************************
  ******************************************************************************/
 
