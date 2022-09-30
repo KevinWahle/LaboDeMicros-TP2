@@ -25,12 +25,19 @@ void CBputChain(circularBuffer * CB, const void * data, uint8_t bytesLen){
 	for (uint8_t i = 0; i < bytesLen; ++i) {
 		CB->buffer[CB->head] = ((uint8_t*)data)[i];
 		CB->head = getCircularPointer(++CB->head);
+		if (CB->head == CB->tail) {
+			CB->tail = getCircularPointer(++CB->tail);;
+		}
 	}
+
 }
 
 void CBputByte(circularBuffer * CB, uint8_t by){
 	CB->buffer[CB->head] = by;
 	CB->head = getCircularPointer(++CB->head);
+	if (CB->head == CB->tail) {
+		CB->tail = getCircularPointer(++CB->tail);;
+	}
 }
 
 uint8_t CBgetByte(circularBuffer * CB){

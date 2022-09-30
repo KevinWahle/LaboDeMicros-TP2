@@ -30,6 +30,9 @@ void SPIBputChain(SPIBuffer * CB, package *data, uint8_t Len){
 		memcpy(&(CB->buffer[CB->head]), &(data[i]), sizeof(package));
 
 		CB->head = getCircularPointer(++CB->head);
+		if (CB->head == CB->tail) {
+			CB->tail = getCircularPointer(++CB->tail);;
+		}
 	}
 }
 
@@ -37,6 +40,9 @@ void SPIBputByte(SPIBuffer * CB, package* pckg){
 	memcpy( &(CB->buffer[CB->head]), &pckg, sizeof(package));
 
 	CB->head = getCircularPointer(++CB->head);
+	if (CB->head == CB->tail) {
+		CB->tail = getCircularPointer(++CB->tail);;
+	}
 }
 
 package SPIBgetPckg(SPIBuffer * CB){

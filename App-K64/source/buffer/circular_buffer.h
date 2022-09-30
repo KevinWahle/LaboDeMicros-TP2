@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define BUFFER_SIZE 32  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
+#define BUFFER_SIZE 128  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
 
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
