@@ -101,7 +101,7 @@ void FXOS8700CQ_init(){
 	while(isI2CBusy(I2C_ACC));
 }
 
-bool checkForNewDataAvailableFXOS8700CQ(void){
+static bool checkForNewDataAvailableFXOS8700CQ(void){
 	if(!isI2CBusy(I2C_ID)){
 		readState = READY;
 		return true;

@@ -2,7 +2,7 @@
   @file     AccMagSensor.h
   @brief    AccMagSensor Lectura de sensor no bloqueante
   @author   Grupo 5
-  @date		23 sep. 2022
+  @date		30 sep. 2022
  ******************************************************************************/
 
 #ifndef _AccMagSensor_H_
@@ -42,10 +42,18 @@ typedef struct{
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
  ******************************************************************************/
+/**
+ * @brief Sensor HW initalization
+ */
 void init_ACC_MAG();
-
+/**
+ * @brief Async. Start the reading of Acc and Mag
+ */
 bool startReading_ACC_MAG(void);
-bool newDataAvailable_ACC_MAG(void);
+/**
+ * @brief gets last data read
+ * @param ACCEL and MAG structure where data 'll be placed
+ */
 void getLastRead_ACC_MAG(ACCEL * acc, MAG * mg);
 
 /*******************************************************************************

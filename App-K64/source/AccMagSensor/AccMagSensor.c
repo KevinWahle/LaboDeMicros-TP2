@@ -6,9 +6,6 @@ void init_ACC_MAG(){
 void startReading_ACC_MAG(void){
 	startReadAccMagFXOS8700CQ();
 }
-bool newDataAvailable_ACC_MAG(void){
-	return checkForNewDataAvailableFXOS8700CQ();
-}
 void getLastRead_ACC_MAG(ACCEL * acc, MAG * mg){
 	getLastReadFXOS8700CQ(acc, mg);
 }

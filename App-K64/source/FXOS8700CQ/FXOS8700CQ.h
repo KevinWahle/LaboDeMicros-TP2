@@ -1,8 +1,8 @@
 /***************************************************************************//**
-  @file     I2C.h
-  @brief    I2C Functions
+  @file     FXOS8700CQ.h
+  @brief    FXOS8700CQ Accelerometer and magnetometer
   @author   Grupo 5
-  @date		13 sep. 2022
+  @date		30 sep. 2022
  ******************************************************************************/
 
 #ifndef _FXOS8700CQ_H_
@@ -43,9 +43,18 @@ typedef struct{
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
  ******************************************************************************/
+/**
+ * @brief configures the sensor. Blocking function til it initalizes the sensor
+ */
 void FXOS8700CQ_init(void);
+/**
+ * @brief Async. Start the reading of Acc and Mag
+ */
 void startReadAccMagFXOS8700CQ(void);
-bool checkForNewDataAvailableFXOS8700CQ(void);
+/**
+ * @brief gets last data read
+ * @param ACCEL and MAG structure where data 'll be placed
+ */
 void getLastReadFXOS8700CQ(ACCEL * acc, MAG * mg);
 
 /*******************************************************************************

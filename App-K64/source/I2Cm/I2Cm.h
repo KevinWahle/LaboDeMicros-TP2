@@ -45,7 +45,7 @@ typedef enum {I2C_0, I2C_1, I2C_2, I2C_ACC} I2CPort_t;
 void I2CmInit(I2CPort_t id);
 
 /**
- * @brief realiza una transmision y recepcion po I2C
+ * @brief ASYNC. realiza una transmision y recepcion po I2C
  * @param address address del slave
  * @param writeBuffer buffer de escritura
  * @param writeSize Tamano del buffer de escritura
@@ -53,7 +53,10 @@ void I2CmInit(I2CPort_t id);
  * @param readSize Tamano del buffer de lectura
 */
 bool I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize);
-
+/**
+ * @brief tells you whether the bus is busy
+ * @return true if bus is busy
+*/
 bool isI2CBusy(I2CPort_t id);
 
 /*******************************************************************************
