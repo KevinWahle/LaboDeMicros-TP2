@@ -52,8 +52,9 @@ void I2CmInit(I2CPort_t id);
  * @param readBuffer buffer para guardar la lectura
  * @param readSize Tamano del buffer de lectura
 */
-void I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize);
+bool I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize);
 
+bool isI2CBusy(I2CPort_t id);
 
 /*******************************************************************************
  ******************************************************************************/

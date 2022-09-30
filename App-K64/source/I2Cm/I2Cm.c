@@ -87,8 +87,8 @@ void I2CmInit(I2CPort_t id) {
 //	portPtr[I2CPinPorts[id]]->PCR[I2CPinPinsSDA[id]] = PORT_PCR_MUX(I2CPinAlts[id]) | PORT_PCR_ODE_MASK;
 
 	// TEST:
-	portPtr[I2CPinPorts[id]]->PCR[I2CPinPinsSCL[id]] = PORT_PCR_MUX(I2CPinAlts[id]) | PORT_PCR_ODE_MASK | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
-	portPtr[I2CPinPorts[id]]->PCR[I2CPinPinsSDA[id]] = PORT_PCR_MUX(I2CPinAlts[id]) | PORT_PCR_ODE_MASK | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
+	portPtr[I2CPinPorts[id]]->PCR[I2CPinPinsSCL[id]] = PORT_PCR_MUX(I2CPinAlts[id]) | PORT_PCR_ODE_MASK; //| PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
+	portPtr[I2CPinPorts[id]]->PCR[I2CPinPinsSDA[id]] = PORT_PCR_MUX(I2CPinAlts[id]) | PORT_PCR_ODE_MASK; //| PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
 
 // I2C Master config
 
@@ -111,6 +111,7 @@ typedef struct{
 	uint8_t* writeBuffer;
 	uint8_t address;
 	bool repeatedStartRealeased;
+	bool writeMode;
 }writeState_t;
 
 typedef struct{
@@ -126,6 +127,8 @@ I2C_STATES i2cStates [] = {I2C_FAIL, I2C_FAIL};
 static writeState_t writeState [I2C_COUNT];
 static readState_t readState [I2C_COUNT];
 
+static bool isBusBusy = false;
+
 /**
  * @brief realiza una transmision y recepcion por I2C
  * @param address address del slave
@@ -134,36 +137,46 @@ static readState_t readState [I2C_COUNT];
  * @param readBuffer buffer para guardar la lectura
  * @param readSize Tamano del buffer de lectura
 */
-void I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize) {
+bool I2CmStartTransaction(I2CPort_t id, uint8_t address, uint8_t* writeBuffer, uint8_t writeSize, uint8_t* readBuffer, uint8_t readSize) {
 
 	I2C_Type* pI2C = I2CPtrs[id%I2C_COUNT];
+	//if(!(pI2C->S & I2C_S_BUSY_MASK)){  // hace la transaction solo si no esta busy
+	if(!isI2CBusy(id)){
+		writeState[id%I2C_COUNT].writeSize = writeSize;
+		writeState[id%I2C_COUNT].writeBuffer = writeBuffer;
+		writeState[id%I2C_COUNT].address = address;
+		writeState[id%I2C_COUNT].writtenBytesCounter = 0;
+		writeState[id%I2C_COUNT].repeatedStartRealeased = false;
+		readState[id%I2C_COUNT].readSize = readSize;
+		readState[id%I2C_COUNT].readBuffer = readBuffer;
+		readState[id%I2C_COUNT].readBytesCounter = 0;
 
-  // Initialize RAM variables
+		uint8_t RWbit = writeSize > 0 ? 0 : 1; // bit de R/W luego del address. 0 si hay que escribir, 1 para leer
+		writeState[id%I2C_COUNT].writeMode = !RWbit;
+		i2cStates[id%I2C_COUNT] = MASTER_TX; // El master SIEMPRE será TX, pues debe enviar el address
 
-	writeState[id%I2C_COUNT].writeSize = writeSize;
-	writeState[id%I2C_COUNT].writeBuffer = writeBuffer;
-	writeState[id%I2C_COUNT].address = address;
-	writeState[id%I2C_COUNT].writtenBytesCounter = 0;
-	writeState[id%I2C_COUNT].repeatedStartRealeased = false;
-	readState[id%I2C_COUNT].readSize = readSize;
-	readState[id%I2C_COUNT].readBuffer = readBuffer;
-	readState[id%I2C_COUNT].readBytesCounter = 0;
+		isBusBusy = true;
+		// Enable I2C in Master Mode, transmit mode and interrupts
+		pI2C->C1 |= I2C_C1_IICEN_MASK;
+		pI2C->C1 |= I2C_C1_IICIE_MASK;
+		pI2C->C1 |= I2C_C1_TX_MASK;
+		pI2C->C1 |= I2C_C1_MST_MASK;
 
-	uint8_t RWbit = writeSize > 0 ? 0 : 1; // bit de R/W luego del address. 0 si hay que escribir, 1 para leer
-	i2cStates[id%I2C_COUNT] = RWbit == 0 ? MASTER_TX : MASTER_RX; // Se setea el primer estado de la fsm
+		pI2C->D = address << 1 | RWbit;		// Slave Address + RW bit
 
-
-	// Enable I2C in Master Mode, transmit mode and interrupts
-	pI2C->C1 |= I2C_C1_IICEN_MASK;
-	pI2C->C1 |= I2C_C1_IICIE_MASK;
-	pI2C->C1 |= I2C_C1_TX_MASK;
-	pI2C->C1 |= I2C_C1_MST_MASK;
-
-	pI2C->D = address << 1 | RWbit;		// Slave Address + RW bit
-
+		return true;   // se hizo la transaction
+	}
+	return false;      // no se hizo la transaction por busy
 }
 
 
+bool isI2CBusy(I2CPort_t id){
+	I2C_Type* pI2C = I2CPtrs[id%I2C_COUNT];
+	if(!isBusBusy){
+		return pI2C->S & I2C_S_BUSY_MASK;
+	}
+	return true;
+}
 
 /*******************************************************************************
  *******************************************************************************
@@ -178,24 +191,37 @@ __ISR__ I2C0_IRQHandler() {
 	if(pI2C->S & I2C_S_TCF_MASK){     // Me fijo si la interrupcion fue porque se termino una transaccion y LLEGO un ACK/NACK
 		switch(i2cStates[0]){
 		case MASTER_TX:
-			if(writeState[0].writtenBytesCounter >= writeState[0].writeSize && readState[0].readSize == 0){  // si ya se escribio \todo lo que me pasaron y no hay nada para leer
+			if(!writeState[0].writeMode){  // si se pide lectura
+				i2cStates[0] = MASTER_RX;
+				pI2C->C1 &= ~I2C_C1_TX_MASK;  // Cambio la direccion
+
+				if(readState[0].readSize > 1) // Si es > 1, no debo responder con un NACK, si no con un ACK para seguir leyendo
+					pI2C->C1 &= ~I2C_C1_TXAK_MASK;  // Envio el ACK
+				else
+					pI2C->C1 |= I2C_C1_TXAK_MASK;  // Envio el NACK
+
+				uint8_t dummyData = pI2C->D;  // Leo dummy y disparo lectura
+				dummyData++; // USING DUMMY
+				return;
+			}
+			else if(writeState[0].writtenBytesCounter >= writeState[0].writeSize && readState[0].readSize == 0){  // si ya se escribio \todo lo que me pasaron y no hay nada para leer
 				pI2C->C1 &= ~I2C_C1_MST_MASK;     // genero el Stop Signal
-				pI2C->D = 0x00;
-				return;                           // ESCRIBIR D PARA CLEANIAR TCF
+				isBusBusy = false;
+				return;
 			}
 			else if(pI2C->S & I2C_S_RXAK_MASK){  // si entra, no me reconocio el ACK, => corto \todo
-				pI2C->C1 &= ~I2C_C1_MST_MASK;     // genero el Stop Signal
-				//pI2C->D = 0x00;
-				return;								// ESCRIBIR D PARA CLEANIAR TCF
+				pI2C->C1 &= ~I2C_C1_MST_MASK;    // genero el Stop Signal
+				isBusBusy = false;
+				return;
 			}
-			else if(!(pI2C->S & I2C_S_RXAK_MASK)){ // ASUMO QUE RXAK NO CAMBIA
-				if(!writeState[0].repeatedStartRealeased){
+			else if(!(pI2C->S & I2C_S_RXAK_MASK)){ //si entra, me envio el ACK
+				if(!writeState[0].repeatedStartRealeased){ // si no habia hecho un repeated Start
 					if(writeState[0].writtenBytesCounter < writeState[0].writeSize){ // si aun no escribi \todo
 						pI2C->D = writeState[0].writeBuffer[writeState[0].writtenBytesCounter];
 						writeState[0].writtenBytesCounter++;
 						return;
 					}
-					else if(writeState[0].writtenBytesCounter == writeState[0].writeSize){	 // si escribi \todo, lanzo un Repeated start
+					else if(writeState[0].writtenBytesCounter == writeState[0].writeSize){	 // si escribi \todo, lanzo un Repeated start (ya se que readSize > 0, lo que implica un repeated start)
 						pI2C->C1 |= I2C_C1_RSTA_MASK;              // hago un repeated start
 						pI2C->D = writeState[0].address << 1 | 1;  // meto el address y ya FIJO lectura, si bien se puede escribir, por la simpleza de nuestra funcion se asume lectura ya
 						writeState[0].repeatedStartRealeased = true;
@@ -204,6 +230,12 @@ __ISR__ I2C0_IRQHandler() {
 				else{     // Debo cambiar el modo !! a RX, pues ya envie el Repeated start
 					i2cStates[0] = MASTER_RX;
 					pI2C->C1 &= ~I2C_C1_TX_MASK;  // Cambio la direccion
+
+					if(readState[0].readSize > 1) // Si es > 1, no debo responder con un NACK, si no con un ACK para seguir leyendo
+						pI2C->C1 &= ~I2C_C1_TXAK_MASK;  // Envio el ACK
+					else
+						pI2C->C1 |= I2C_C1_TXAK_MASK;  // Envio el NACK
+
 					uint8_t dummyData = pI2C->D;  // Leo dummy y disparo lectura
 					dummyData++; // USING DUMMY
 					return;
@@ -212,15 +244,21 @@ __ISR__ I2C0_IRQHandler() {
 			break;
 		case MASTER_RX:
 			if(readState[0].readBytesCounter < ( readState[0].readSize - 1 ) ){  // si leeiste \todos menos el ultimo => ahora vas a leer el ultimo
-				pI2C->C1 &= ~I2C_C1_TXAK_MASK;  // envio el AK
+
+				if(readState[0].readBytesCounter < ( readState[0].readSize - 2 )) // ACK y NACK check
+					pI2C->C1 &= ~I2C_C1_TXAK_MASK;  // Envio el ACK
+				else
+					pI2C->C1 |= I2C_C1_TXAK_MASK;  // Envio el NACK
+
 			 	readState[0].readBuffer[readState[0].readBytesCounter] = pI2C->D;
 				readState[0].readBytesCounter++;
 				return;
 			}
 			else{
-				pI2C->C1 &= ~I2C_C1_MST_MASK;
+				pI2C->C1 &= ~I2C_C1_MST_MASK;   // Apago \todo
 			 	readState[0].readBuffer[readState[0].readBytesCounter] = pI2C->D;  //
 				readState[0].readBytesCounter++;
+				isBusBusy = false;
 				return;
 			}
 			break;
