@@ -58,7 +58,7 @@
 #define PSOUT_ALT (ALTERNATIVE_2)
 #define PSIN_ALT (ALTERNATIVE_2)
 
-#define MY_PCS0 PORTNUM2PIN(PE,27)
+#define MY_PCS0 PORTNUM2PIN(PE,26)
 typedef enum {PIN_DISABLE, ALTERNATIVE_1, ALTERNATIVE_2, ALTERNATIVE_3, ALTERNATIVE_4, 
 									ALTERNATIVE_5, ALTERNATIVE_6, ALTERNATIVE_7} mux_alt;
 typedef enum {OPEN_DRAIN, PUSH_PULL} pin_mode;
@@ -169,7 +169,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	// PUSHR Setup
 	SPIPtrs[SPI_n]->PUSHR = SPI_PUSHR_CTAS(0);
 
-	CBinit(TxBuffer);
+	SPIBinit(TxBuffer);
 
 	// Enable SPI
 	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
@@ -335,15 +335,15 @@ void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 
 
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
-	if(CBisEmpty(&(TxBuffer[SPI_0]))){
+	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){
 		gpioWrite(MY_PCS0, CS_ACTIVE);		
 
 		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
-		CBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
+		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
 		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(data[0].msg | SPI_PUSHR_PCS(1)<<PCS);	// Ponemos el primer mensaje
 	}
 	else {
-		CBputChain(&(TxBuffer[SPI_0]), data, len);
+		SPIBputChain(&(TxBuffer[SPI_0]), data, len);
 	}
 }
 
@@ -357,7 +357,7 @@ __ISR__ SPI0_IRQHandler(){
 			gpioWrite(MY_PCS0, CS_INACTIVE);		//antes de transmitir lo hacemos
 			//TODO: ponen un toque de delay minimo
 
-			if(!CBisEmpty(&(TxBuffer[SPI_0])))				// Si hay algo para enviar
+			if(!SPIBisEmpty(&(TxBuffer[SPI_0])))				// Si hay algo para enviar
 				gpioWrite(MY_PCS0, CS_ACTIVE);		// Reactivamos el PCS
 		}
  		
@@ -369,9 +369,9 @@ __ISR__ SPI0_IRQHandler(){
 			(lastPckg.cb)();						// TODO: revisar ejecucion del callback
 		}
 
-		package pckgAux = CBgetPckg(&(TxBuffer[SPI_0]));		// REVISAR: El static no esta al pedo?
+		package pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));		// REVISAR: El static no esta al pedo?
  		
-		if(!CBisEmpty(&(TxBuffer[SPI_0]))){		// Podemos seguir mandando
+		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Podemos seguir mandando
  			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
  			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(pckgAux.msg); //Actualizo lo prox a enviar
 		}

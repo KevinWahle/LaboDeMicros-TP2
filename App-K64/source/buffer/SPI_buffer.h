@@ -28,7 +28,6 @@ typedef struct{
 	uint8_t *pSave; 	// Donde guardar data
 	CBType cb;		// Callback
 	uint8_t read		:1;
-	uint8_t cs_start	:1;
 	uint8_t cs_end		:1;
 	//TODO: Agregar start y end de la transmision para gestionar PCs
 } package;
@@ -49,38 +48,38 @@ typedef struct{
  * @brief builder
  * @param SPIBuffer type
  */
-void CBinit(SPIBuffer * CB);
+void SPIBinit(SPIBuffer * CB);
 
 /**
  * @brief tells you whether there is new data
  * @param SPIBuffer type
  */
-bool CBisEmpty(SPIBuffer * CB);
+bool SPIBisEmpty(SPIBuffer * CB);
 
 /**
  * @brief push a string into the buffer
  * @param SPIBuffer type, data, data length in bytes
  */
-void CBputByte(SPIBuffer * CB, package* pckg);
+void SPIBputByte(SPIBuffer * CB, package* pckg);
 
 /**
  * @brief push a chain into the buffer
  * @param SPIBuffer type, data, data length in bytes
  */
-void CBputChain(SPIBuffer * CB, package *data, uint8_t Len);
+void SPIBputChain(SPIBuffer * CB, package *data, uint8_t Len);
 
 /**
  * @brief gets a byte from the buffer
  * @param circularBuffer type
  * @return the byte or BUFFER_FULL special byte
  */
-package CBgetPckg(SPIBuffer * CB);
+package SPIBgetPckg(SPIBuffer * CB);
 
 /**
  * @brief tells you the amount of unread bytes
  * @param SPIBuffer type
  */
-uint8_t CBgetBufferState(SPIBuffer * CB);
+uint8_t SPIBgetBufferState(SPIBuffer * CB);
 
 /** UNIMPLEMENTED
  * @brief gets a chain of bytes
@@ -93,7 +92,7 @@ uint8_t CBgetBufferState(SPIBuffer * CB);
  * @brief Set all bytes to 0
  * @param circularBuffer type
  */
-void CBreset(SPIBuffer * CB);
+void SPIBreset(SPIBuffer * CB);
 
 /*******************************************************************************
  ******************************************************************************/
