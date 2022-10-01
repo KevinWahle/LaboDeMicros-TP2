@@ -199,9 +199,9 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
 void CANWrite (uint8_t address, uint8_t value){
   package data[WRITESIZE];
   
-  data[0].msg=WRITE; data[0].pSave=NULL; data[0].cb=NULL ;data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false;
-  data[2].msg=value; data[2].pSave=NULL; data[2].cb=NULL; data[2].read=false;
+  data[0].msg=WRITE; data[0].pSave=NULL; data[0].cb=NULL ;data[0].read=false; data[0].cs_end=0;
+  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false; data[1].cs_end=0;
+  data[2].msg=value; data[2].pSave=NULL; data[2].cb=NULL; data[2].read=false; data[2].cs_end=1;
 
   SPISend(SPI_0, data, WRITESIZE, 0);
 }
@@ -209,10 +209,10 @@ void CANWrite (uint8_t address, uint8_t value){
 void CANRead (uint8_t address, uint8_t* save, CBType mycb){
   package data[READSIZE];
   
-  data[0].msg=READ; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false;
+  data[0].msg=READ; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false; data[0].cs_end=0;
+  data[1].msg=address; data[1].pSave=NULL; data[1].cb=NULL; data[1].read=false; data[1].cs_end=0;
   //data[2].msg=0; data[2].pSave=NULL; data[2].cb=NULL; data[2].read=false;
-  data[2].msg=0; data[2].pSave=save; data[2].cb=mycb; data[2].read=true;
+  data[2].msg=0; data[2].pSave=save; data[2].cb=mycb; data[2].read=true; data[2].cs_end=1;
 
   SPISend(SPI_0, data, READSIZE, 0);
 }
@@ -221,10 +221,10 @@ void CANRead (uint8_t address, uint8_t* save, CBType mycb){
 void CANBitModify(uint8_t address, uint8_t mask, uint8_t value){
   package data[BITMODSIZE];
   
-  data[0].msg=BIT_MODIFY; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false;
-  data[1].msg=address; data[1].pSave=NULL; data[0].cb=NULL; data[1].read=false;
-  data[2].msg=mask; data[2].pSave=NULL; data[0].cb=NULL; data[2].read=false;
-  data[3].msg=value; data[3].pSave=NULL; data[0].cb=NULL; data[3].read=false;
+  data[0].msg=BIT_MODIFY; data[0].pSave=NULL; data[0].cb=NULL; data[0].read=false; data[0].cs_end=0;
+  data[1].msg=address; data[1].pSave=NULL; data[0].cb=NULL; data[1].read=false; data[1].cs_end=0;
+  data[2].msg=mask; data[2].pSave=NULL; data[0].cb=NULL; data[2].read=false; data[2].cs_end=0;
+  data[3].msg=value; data[3].pSave=NULL; data[0].cb=NULL; data[3].read=false; data[3].cs_end=1;
   SPISend(SPI_0, data, READSIZE, 0);
 }
 

@@ -136,7 +136,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) );
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state));
 
 	// TCR Setup
 	SPIPtrs[SPI_n]->TCR &= SPI_TCR_SPI_TCNT(0);
@@ -157,25 +157,26 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 		SPIPtrs[SPI_n]->CTAR_SLAVE[0] = (SPI_CTAR_FMSZ(config->frame_size-1) | SPI_CTAR_CPOL(config->clk_pol) | 
 										SPI_CTAR_CPHA(config->clk_phase));
 	}
-	SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_ASC(0b0111);
+	//SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_ASC(0b0111);
 
 	// SR Setup
 	//SPIPtrs[SPI_n]->SR |= SPI_SR_EOQF(1) | SPI_SR_RXCTR(1) | SPI_SR_TXCTR(1) | SPI_SR_TCF(1);
-	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
+	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF_MASK;
 
 	// RSER Setup
 	SPIPtrs[SPI_n]->RSER |= SPI_RSER_TCF_RE(1);
+
 
 	// PUSHR Setup
 	SPIPtrs[SPI_n]->PUSHR = SPI_PUSHR_CTAS(0);
 
 	SPIBinit(TxBuffer);
 
-	// Enable SPI
-	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
-
 	//TODO: Config puerto
 	gpioMode(MY_PCS0,OUTPUT);
+
+	// Enable SPI
+	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
 
 	return true;
 }
@@ -335,12 +336,24 @@ void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
 
 
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
+	uint32_t PUSHRAux;
+	
 	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){
 		gpioWrite(MY_PCS0, CS_ACTIVE);		
 
-		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
-		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(data[0].msg | SPI_PUSHR_PCS(1)<<PCS);	// Ponemos el primer mensaje
+		
+		PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
+		PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK;
+		PUSHRAux &= ~SPI_PUSHR_PCS_MASK;
+		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
+		
+		if(data[0].cs_end){
+			PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
+		}
+
+		SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
+			
 	}
 	else {
 		SPIBputChain(&(TxBuffer[SPI_0]), data, len);
@@ -348,45 +361,49 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 }
 
 __ISR__ SPI0_IRQHandler(){
+	static int cont=0;
 	static package lastPckg;
+	uint32_t PUSHRAux;
 
-	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
- 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
+	if(cont==0){
+		cont++;
+		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
+		SPIPtrs[SPI_0]->POPR;
 
-		if (lastPckg.cs_end) {						// Si el anterior pidio que apaguemos el CS
-			gpioWrite(MY_PCS0, CS_INACTIVE);		//antes de transmitir lo hacemos
-			//TODO: ponen un toque de delay minimo
+	}
 
-			if(!SPIBisEmpty(&(TxBuffer[SPI_0])))				// Si hay algo para enviar
-				gpioWrite(MY_PCS0, CS_ACTIVE);		// Reactivamos el PCS
-		}
+		uint8_t readAux=SPIPtrs[SPI_0]->POPR;
+	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK && cont !=0){
+ 		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
  		
-		if(lastPckg.read){							// Leemos si el anterior pidió que hagamos
-			*(lastPckg.pSave) = (uint8_t) SPIPtrs[SPI_0]->POPR;
+ 		if(lastPckg.read){							// Leemos si el anterior pidió que hagamos
+			*(lastPckg.pSave) = (uint8_t) readAux;
 		}
 
 		if(lastPckg.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
 			(lastPckg.cb)();						// TODO: revisar ejecucion del callback
 		}
 
-		package pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));		// REVISAR: El static no esta al pedo?
- 		
 		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Podemos seguir mandando
- 			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
- 			SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(pckgAux.msg); //Actualizo lo prox a enviar
-		}
+			package pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));
+			PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
+			PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK;		//REVISAR: Ver como mergear
+			PUSHRAux &= ~SPI_PUSHR_PCS_MASK;
+ 			PUSHRAux |= (SPI_PUSHR_TXDATA(pckgAux.msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
+			
+			if (pckgAux.cs_end){
+				PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
+			}
 
-		else{							// No tenemos para mandar
- 			SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_PCS_MASK;
-			gpioWrite(MY_PCS0, CS_INACTIVE);
+			SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
+			memcpy(&lastPckg, &pckgAux, sizeof(package));
 		}
 		
-		memcpy(&lastPckg, &pckgAux, sizeof(package));
  	}
 }
 
-// Segun Santi Mangone, cada vez que escribis en el registro de PUSHR se manda algo,
-// creoque en nuestro debbugeo pasaba eso
+// Leer el popr lo limpia
+// Escribi el pushr lo manda
 
 
 

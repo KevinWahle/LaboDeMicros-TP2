@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "spi_buffer.h": "c",
-        "istream": "c"
+        "istream": "c",
+        "array": "c",
+        "vector": "c",
+        "xstring": "c",
+        "xutility": "c",
+        "*.ipp": "cpp"
     }
 }

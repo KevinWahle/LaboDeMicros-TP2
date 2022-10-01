@@ -13,6 +13,7 @@
 #include "../buffer/SPI_buffer.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
@@ -37,6 +38,8 @@ static package mypkg[3];
 uint8_t first;
 uint8_t second;
 
+bool done;
+
 void myreadCB();
 
 /* Función que se llama 1 vez, al comienzo del programa */
@@ -51,10 +54,12 @@ void App_Init (void)
     myconfig->LSB_fist=0;
     myconfig->frame_size=8;
     myconfig->clk_pol=0;
-    myconfig->clk_phase=1;
-    myconfig->Baud_rate_scaler=15;
+    myconfig->clk_phase=0;
+    myconfig->Baud_rate_scaler=0b0011;
 
     SPI_config(SPI_0,myconfig);
+
+    done=0;
 }
 
 /* Función que se llama constantemente en un ciclo infinito */
@@ -68,13 +73,13 @@ void App_Run (void)
 
 	if (!gpioRead(PIN_SW3)){            //Escribo
 		while (!gpioRead(PIN_SW3));
-			mypkg[0].msg = 'a';
+			/*mypkg[0].msg = 'a';
             mypkg[0].pSave = NULL;
             mypkg[0].cb = NULL;
             mypkg[0].read = 0;
             mypkg[0].cs_end = 0; 
 
-            mypkg[1].msg = 'b';
+            mypkg[1].msg = 't';
             mypkg[1].pSave = NULL;
             mypkg[1].cb = NULL;
             mypkg[1].read = 0;
@@ -86,7 +91,7 @@ void App_Run (void)
             mypkg[2].read = 0;
             mypkg[2].cs_end = 1;
 
-            SPISend(SPI_0, mypkg, 3, 0);
+            SPISend(SPI_0, mypkg, 3, 0);*/
 
 			mypkg[0].msg = 'a';
             mypkg[0].pSave = NULL;
@@ -107,6 +112,7 @@ void App_Run (void)
             mypkg[2].cs_end = 1;
 
             SPISend(SPI_0, mypkg, 3, 0);
+
 
 	}
 
@@ -132,11 +138,15 @@ void App_Run (void)
 
 	}
 
+	if(done){
+		printf("%c,%c\n", first, second);
+		done=0;
+	}
   
 }
 
 void myreadCB(){
-    printf("%c, %c", first, second);
+    done=1;
 }
 
 /*******************************************************************************
