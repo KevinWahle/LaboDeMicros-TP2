@@ -1,5 +1,5 @@
-
-*.json
-App-K64/.cproject
-App-K64/.cproject
-.vscode/settings.json
+*/Debug/
+*/Release/
+*.launch
+*.cproject
+*/.vscode
