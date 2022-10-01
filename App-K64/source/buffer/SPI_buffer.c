@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-package pckgNULL={.msg=0, .pSave=NULL, .read=0};
+package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
 
 static uint8_t getCircularPointer(uint8_t index){
 	return index % SPIBUFFER_SIZE;

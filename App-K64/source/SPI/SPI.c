@@ -96,7 +96,8 @@ static SPIBuffer TxBuffer[SPI_2];
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
 
-// +ej: static const int temperaturas_medias[4] = {23, 26, 24, 29};+
+static package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
+
 
 
 /*******************************************************************************
@@ -136,7 +137,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state));
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state)| SPI_MCR_DIS_RXF(1));
 
 	// TCR Setup
 	SPIPtrs[SPI_n]->TCR &= SPI_TCR_SPI_TCNT(0);
@@ -160,7 +161,6 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	//SPIPtrs[SPI_n]->CTAR[0] |= SPI_CTAR_ASC(0b0111);
 
 	// SR Setup
-	//SPIPtrs[SPI_n]->SR |= SPI_SR_EOQF(1) | SPI_SR_RXCTR(1) | SPI_SR_TXCTR(1) | SPI_SR_TCF(1);
 	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF_MASK;
 
 	// RSER Setup
@@ -171,9 +171,6 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	SPIPtrs[SPI_n]->PUSHR = SPI_PUSHR_CTAS(0);
 
 	SPIBinit(TxBuffer);
-
-	//TODO: Config puerto
-	gpioMode(MY_PCS0,OUTPUT);
 
 	// Enable SPI
 	SPIPtrs[SPI_n]->MCR &= ~SPI_MCR_HALT(1);	// Reanudamos toda comunicacion
@@ -344,8 +341,7 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
 		
 		PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
-		PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK;
-		PUSHRAux &= ~SPI_PUSHR_PCS_MASK;
+		PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
 		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); 	//Actualizo lo prox a enviar
 		
 		if(data[0].cs_end){
@@ -362,42 +358,46 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 
 __ISR__ SPI0_IRQHandler(){
 	static int cont=0;
-	static package lastPckg;
+	static package pckgAux;
 	uint32_t PUSHRAux;
 
-	if(cont==0){
+	if(cont){
 		cont++;
 		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
 		SPIPtrs[SPI_0]->POPR;
 
 	}
 
-	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK && cont !=0){
+	else if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
  		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
 		
 		uint8_t readAux=SPIPtrs[SPI_0]->POPR;
  		
- 		if(lastPckg.read){							// Leemos si el anterior pidió que hagamos
-			*(lastPckg.pSave) = (uint8_t) readAux;
+ 		if(pckgAux.read){							// Leemos si el anterior pidió que hagamos
+			*(pckgAux.pSave) = (uint8_t) readAux;
 		}
 
-		if(lastPckg.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
-			(lastPckg.cb)();						// TODO: revisar ejecucion del callback
+		if(pckgAux.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
+			(pckgAux.cb)();						
 		}
 
-		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Podemos seguir mandando
-			package pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));
+		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Hay más contenido para mandar
+			pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));
 			PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
-			PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK;		//REVISAR: Ver como mergear
-			PUSHRAux &= ~SPI_PUSHR_PCS_MASK;
+			PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
  			PUSHRAux |= (SPI_PUSHR_TXDATA(pckgAux.msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
 			
 			if (pckgAux.cs_end){
 				PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
+
 			}
 
 			SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
-			memcpy(&lastPckg, &pckgAux, sizeof(package));
+
+		}
+
+		else{									//Si NO hay mas para mandar pongo el packgAux como nulo
+			memcpy(&pckgAux, &pckgNULL, sizeof(package));
 		}
 		
  	}

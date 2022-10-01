@@ -33,14 +33,15 @@
 static SPI_config_t config;
 static SPI_config_t * myconfig;
 
-static package mypkg[3];
+static package mypkg[4];
 
-uint8_t first;
-uint8_t second;
+uint8_t first, second;
+
 
 bool done;
 
 void myreadCB();
+void myreadCB2();
 
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
@@ -73,88 +74,69 @@ void App_Run (void)
 
 	if (!gpioRead(PIN_SW3)){            //Escribo
 		while (!gpioRead(PIN_SW3));
-			/*mypkg[0].msg = 'a';
-            mypkg[0].pSave = NULL;
-            mypkg[0].cb = NULL;
-            mypkg[0].read = 0;
-            mypkg[0].cs_end = 0; 
-
-            mypkg[1].msg = 't';
-            mypkg[1].pSave = NULL;
-            mypkg[1].cb = NULL;
-            mypkg[1].read = 0;
-            mypkg[1].cs_end = 0;
-
-            mypkg[2].msg = 'f';
-            mypkg[2].pSave = NULL;
-            mypkg[2].cb = 0;
-            mypkg[2].read = 0;
-            mypkg[2].cs_end = 1;
-
-            SPISend(SPI_0, mypkg, 3, 0);*/
-
-			mypkg[0].msg = 'a';
-            mypkg[0].pSave = NULL;
-            mypkg[0].cb = NULL;
-            mypkg[0].read = 0;
-            mypkg[0].cs_end = 0;
-
-            mypkg[1].msg = 'b';
-            mypkg[1].pSave = &first;
-            mypkg[1].cb = NULL;
-            mypkg[1].read = 1;
-            mypkg[1].cs_end = 0;
-
-            mypkg[2].msg = 'f';
-            mypkg[2].pSave = &second;
-            mypkg[2].cb = myreadCB;
-            mypkg[2].read = 1;
-            mypkg[2].cs_end = 1;
-
-            SPISend(SPI_0, mypkg, 3, 0);
-
-
-	}
-
-	if (!gpioRead(PIN_SW2)){
-		while (!gpioRead(PIN_SW2));     //Escribo, leo, leo
-			mypkg[0].msg = 'a';
-            mypkg[0].pSave = NULL;
-            mypkg[0].cb = NULL;
-            mypkg[0].read = 0;
-            mypkg[0].cs_end = 0; 
-
-            mypkg[1].msg = 'b';
-            mypkg[1].pSave = &first;
-            mypkg[1].cb = NULL;
-            mypkg[1].read = 1;
-            mypkg[1].cs_end = 0;
-
-            mypkg[2].msg = 'f';
-            mypkg[2].pSave = &second;
-            mypkg[2].cb = myreadCB;
-            mypkg[2].read = 1;
-            mypkg[2].cs_end = 1;
-
+			sendEscritura();
+			sendLectura();
 	}
 
 	if(done){
 		printf("%c,%c\n", first, second);
+		first='Z'; second='K';
 		done=0;
 	}
-  
 }
 
 void myreadCB(){
     done=1;
 }
 
+
 /*******************************************************************************
  *******************************************************************************
                         LOCAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
+void sendEscritura(){
+	mypkg[0].msg = 'a';
+	mypkg[0].pSave = NULL;
+	mypkg[0].cb = NULL;
+	mypkg[0].read = 0;
+	mypkg[0].cs_end = 0;
 
+	mypkg[1].msg = 't';
+	mypkg[1].pSave = NULL;
+	mypkg[1].cb = NULL;
+	mypkg[1].read = 0;
+	mypkg[1].cs_end = 0;
 
+	mypkg[2].msg = 'f';
+	mypkg[2].pSave = NULL;
+	mypkg[2].cb = 0;
+	mypkg[2].read = 0;
+	mypkg[2].cs_end = 1;
+
+	SPISend(SPI_0, mypkg, 3, 0);
+}
+
+void sendLectura(){
+	mypkg[0].msg = 'a';
+	mypkg[0].pSave = NULL;
+	mypkg[0].cb = NULL;
+	mypkg[0].read = 0;
+	mypkg[0].cs_end = 0;
+
+	mypkg[1].msg = 'b';
+	mypkg[1].pSave = &first;
+	mypkg[1].cb = NULL;
+	mypkg[1].read = 1;
+	mypkg[1].cs_end = 0;
+
+	mypkg[2].msg = 'f';
+	mypkg[2].pSave = &second;
+	mypkg[2].cb = myreadCB;
+	mypkg[2].read = 1;
+	mypkg[2].cs_end = 1;
+
+	SPISend(SPI_0, mypkg, 3, 0);
+}
 /*******************************************************************************
  ******************************************************************************/
