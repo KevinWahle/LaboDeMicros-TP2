@@ -346,7 +346,7 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 		PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
 		PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK;
 		PUSHRAux &= ~SPI_PUSHR_PCS_MASK;
-		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
+		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); 	//Actualizo lo prox a enviar
 		
 		if(data[0].cs_end){
 			PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
@@ -372,9 +372,10 @@ __ISR__ SPI0_IRQHandler(){
 
 	}
 
-		uint8_t readAux=SPIPtrs[SPI_0]->POPR;
 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK && cont !=0){
  		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
+		
+		uint8_t readAux=SPIPtrs[SPI_0]->POPR;
  		
  		if(lastPckg.read){							// Leemos si el anterior pidió que hagamos
 			*(lastPckg.pSave) = (uint8_t) readAux;
@@ -405,6 +406,6 @@ __ISR__ SPI0_IRQHandler(){
 // Leer el popr lo limpia
 // Escribi el pushr lo manda
 
-
+//TODO: CUMPLIR TIEMPOS
 
 
