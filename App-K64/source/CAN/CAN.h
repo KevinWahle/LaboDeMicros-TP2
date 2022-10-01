@@ -22,7 +22,7 @@ typedef struct
 {
   uint16_t ID;
   uint8_t length;
-  uint8_t data [8];
+  char data [8];
 }CANMsg_t;
 
 
