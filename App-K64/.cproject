@@ -234,9 +234,12 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="com.crt.advproject.config.exe.debug.1284265667.487584521" name="uartTest.c" rcbsApplicability="disable" resourcePath="source/UART/uartTest.c" toolsToInvoke="com.crt.advproject.gcc.exe.debug.1546198014.127402924">
+						<tool id="com.crt.advproject.gcc.exe.debug.1546198014.127402924" name="MCU C Compiler" superClass="com.crt.advproject.gcc.exe.debug.1546198014"/>
+					</fileInfo>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="SDK"/>
-						<entry excluding="UART|App.c" flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
+						<entry excluding="UART/uartTest.c|SPI/App.c|I2Cm/I2C_Test.c|I2C_TEST.c|App.c" flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
