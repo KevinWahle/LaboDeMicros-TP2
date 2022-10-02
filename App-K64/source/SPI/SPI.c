@@ -22,6 +22,8 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
+#define TP_ENABLE		// Comentar para desactivar testpoint
+
 																			//SPI_0 SPI_1 SPI_2
 #define PSCK_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)   //PTD1, PTE2, PTB21
 #define PSOUT_PORT(spi_n) (((spi_n)==SPI_0)? PD: ((spi_n)==SPI_1)? PE: PB)  //PTD2, PTE1, PTB22
@@ -56,8 +58,9 @@
 #define PSOUT_ALT (ALTERNATIVE_2)
 #define PSIN_ALT (ALTERNATIVE_2)
 
-#define MY_PCS0 PORTNUM2PIN(PE,26)
-#define TESTPOINT PORTNUM2PIN(PB,20)
+#ifdef TP_ENABLE
+#define TESTPOINT PORTNUM2PIN(PB, 20)
+#endif
 
 typedef enum {PIN_DISABLE, ALTERNATIVE_1, ALTERNATIVE_2, ALTERNATIVE_3, ALTERNATIVE_4, 
 									ALTERNATIVE_5, ALTERNATIVE_6, ALTERNATIVE_7} mux_alt;
@@ -96,7 +99,7 @@ static SPIBuffer TxBuffer[SPI_2];
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
 
-static package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
+//static package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
 
 
 
@@ -123,7 +126,10 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 		return false;
 	}
 	
-	gpioMode(TESTPOINT,OUTPUT);
+#ifdef TP_ENABLE
+	gpioMode(TESTPOINT, OUTPUT);
+	gpioWrite(TESTPOINT, LOW);
+#endif
 	
 	ClockGatingAndInterruptEnable(SPI_n);
 
@@ -261,8 +267,7 @@ void PCSInit(uint8_t SPI_n){
 }
 
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
-	uint32_t PUSHRAux;
-	gpioWrite(TESTPOINT, false);
+	uint32_t PUSHRAux; 
 	if(SPIBisEmpty(&(TxBuffer[SPI_0])) & !inInterrupt){															// Si no hay nada en el buffer
 
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
@@ -274,7 +279,6 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 		if(data[0].cs_end){
 			PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
 		}
-		gpioWrite(TESTPOINT, true);
 		SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
 			
 	}
@@ -284,7 +288,11 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 }
 
 __ISR__ SPI0_IRQHandler(){
-	gpioWrite(TESTPOINT, true);
+	
+#ifdef TP_ENABLE
+	gpioWrite(TESTPOINT, HIGH);
+#endif
+
 	static int cont=0;
 	static package pckgAux;
 	uint32_t PUSHRAux;
@@ -335,7 +343,10 @@ __ISR__ SPI0_IRQHandler(){
 		}		
 		
  	}
-	gpioWrite(TESTPOINT, false);
+
+#ifdef TP_ENABLE
+	gpioWrite(TESTPOINT, LOW);
+#endif
 }
 
 // Leer el popr lo limpia
