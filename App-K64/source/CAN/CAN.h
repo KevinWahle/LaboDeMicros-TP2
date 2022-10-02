@@ -22,13 +22,13 @@ typedef struct
 {
   uint16_t ID;
   uint8_t length;
-  char data [8];
+  uint8_t data [8];
 }CANMsg_t;
 
 
 void CANInit(uint16_t ID, CANMsg_t* msgReceive);
 
-bool CANSend(uint16_t ID, uint8_t * data, uint8_t len);
+bool CANSend(uint8_t * data, uint8_t len);
 
 //Return true if there is a new msg. Resets de msg bool
 bool newMsg();

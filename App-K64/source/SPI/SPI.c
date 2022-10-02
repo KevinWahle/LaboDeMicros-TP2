@@ -234,24 +234,24 @@ void PCSInit(uint8_t SPI_n){
 	switch (SPI_n){
 	case SPI_0:
 		portPtrs[PCS4_PORT(SPI_n)]->PCR[PCS4_PIN(SPI_n)]=0x00;
-		portPtrs[PCS4_PORT(SPI_n)]->PCR[PCS4_PIN(SPI_n)] |= PORT_PCR_MUX(PCS4_ALT);
+		portPtrs[PCS4_PORT(SPI_n)]->PCR[PCS4_PIN(SPI_n)] |= PORT_PCR_MUX(PCS4_ALT) | PORT_PCR_ODE(1);
 
 		portPtrs[PCS5_PORT(SPI_n)]->PCR[PCS5_PIN(SPI_n)]=0x00;	
-		portPtrs[PCS5_PORT(SPI_n)]->PCR[PCS5_PIN(SPI_n)] |= PORT_PCR_MUX(PCS5_ALT);
+		portPtrs[PCS5_PORT(SPI_n)]->PCR[PCS5_PIN(SPI_n)] |= PORT_PCR_MUX(PCS5_ALT) | PORT_PCR_ODE(1);
 	
 	case SPI_1:
 		portPtrs[PCS1_PORT(SPI_n)]->PCR[PCS1_PIN(SPI_n)]=0x00;
-		portPtrs[PCS1_PORT(SPI_n)]->PCR[PCS1_PIN(SPI_n)] |= PORT_PCR_MUX(PCS1_ALT);
+		portPtrs[PCS1_PORT(SPI_n)]->PCR[PCS1_PIN(SPI_n)] |= PORT_PCR_MUX(PCS1_ALT) | PORT_PCR_ODE(1);
 
 		portPtrs[PCS2_PORT(SPI_n)]->PCR[PCS2_PIN(SPI_n)]=0x00;
-		portPtrs[PCS2_PORT(SPI_n)]->PCR[PCS2_PIN(SPI_n)] |= PORT_PCR_MUX(PCS2_ALT);
+		portPtrs[PCS2_PORT(SPI_n)]->PCR[PCS2_PIN(SPI_n)] |= PORT_PCR_MUX(PCS2_ALT) | PORT_PCR_ODE(1);
 
 		portPtrs[PCS3_PORT(SPI_n)]->PCR[PCS3_PIN(SPI_n)]=0x00;
-		portPtrs[PCS3_PORT(SPI_n)]->PCR[PCS3_PIN(SPI_n)] |= PORT_PCR_MUX(PCS3_ALT);
+		portPtrs[PCS3_PORT(SPI_n)]->PCR[PCS3_PIN(SPI_n)] |= PORT_PCR_MUX(PCS3_ALT) | PORT_PCR_ODE(1);
 
 	case SPI_2:
 		portPtrs[PCS0_PORT(SPI_n)]->PCR[PCS0_PIN(SPI_n)]=0x00;
-		portPtrs[PCS0_PORT(SPI_n)]->PCR[PCS0_PIN(SPI_n)] |= PORT_PCR_MUX(PCS0_ALT);
+		portPtrs[PCS0_PORT(SPI_n)]->PCR[PCS0_PIN(SPI_n)] |= PORT_PCR_MUX(PCS0_ALT) | PORT_PCR_ODE(1);
 		break;
 	
 	default:
@@ -259,90 +259,16 @@ void PCSInit(uint8_t SPI_n){
 	}
 }
 
-/*
-uint32_t SPIRead(uint8_t SPI_n){
-//	SPIPtrs[SPI_n]->SR |= SPI_SR_TCF(1);
-	flagRx=1;
-	SPIPtrs[SPI_n]->POPR;
-	return SPIPtrs[SPI_n]->POPR;
-}
-*/
-/*
-void SPIWrite(uint8_t SPI_n, uint8_t *msg, uint8_t PCS, uint8_t bytes){
-	if (msg!=NULL){
-		SPIPtrs[SPI_n]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
-		CBputChain(&TxBuffer, msg, bytes);
-		SPIPtrs[SPI_n]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_n])) | SPI_PUSHR_PCS(1)<<PCS;
-		flagTx=1;
-	}
-}
-*/
-
-/*__ISR__ SPI0_IRQHandler(){
-	uint16_t temp;
- 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
- 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
-
- 		if(CBisEmpty(TxBuffer))
- 			flagTx=0;
-			
- 		if(flagTx || flagRx){
- 			if (flagTx){
- 				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
- 				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_0]));
-				flagRx=1;
- 			}
- 			if(flagRx){
-				SPIPtrs[SPI_0]->POPR; //Leo basura
-				temp=SPIPtrs[SPI_0]->POPR;
-				if (!temp){											//Si esta vacío es porque no me llego nada
-					flagRx=0;
-				}
-				else{
-					if (!flagTx){									//Si no escribí nada, hago fluir para leer
-						SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
- 						SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(0);
-					}
- 					CBputByte(&RxBuffer[SPI_0], (uint8_t)temp);
-				}
- 			}
- 		}
-				
- 	}
- }*/
-
-/*__ISR__ SPI0_IRQHandler(){				//Only for SPI_0, PCS0
-	uint16_t temp;
- 	if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
- 		SPIPtrs[SPI_0]->SR &= SPI_SR_TCF(1);
-		switch(mode){
-			case WRITE:
-				SPIPtrs[SPI_0]->PUSHR &= (~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK);
-				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(CBgetByte(&TxBuffer[SPI_0])) | SPI_PUSHR_PCS(1)<<PCS;
-			case READ:
-				SPIPtrs[SPI_0]->PUSHR &= ~SPI_PUSHR_TXDATA_MASK;
- 				SPIPtrs[SPI_0]->PUSHR |= SPI_PUSHR_TXDATA(0) | SPI_PUSHR_PCS(1)<<PCS;
-				SPIPtrs[SPI_0]->POPR; //Leo basura
-				CBputByte(&RxBuffer[SPI_0], (uint8_t)SPIPtrs[SPI_0]->POPR);
-			case READWRITE:
-				
-		}
-		
-	}
-}*/
-
-
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 	uint32_t PUSHRAux;
 	
-	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){
-		gpioWrite(MY_PCS0, CS_ACTIVE);		
+	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){															// Si no hay nada en el buffer
 
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
 		
 		PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
 		PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
-		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); 	//Actualizo lo prox a enviar
+		PUSHRAux |= (SPI_PUSHR_TXDATA(data[0].msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); 	// Mando el primer byte
 		
 		if(data[0].cs_end){
 			PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
@@ -351,8 +277,8 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 		SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
 			
 	}
-	else {
-		SPIBputChain(&(TxBuffer[SPI_0]), data, len);
+	else {												// Si ya hay cosas en el buffer
+		SPIBputChain(&(TxBuffer[SPI_0]), data, len);	// solo agrego los mensajes nuevos al mismo
 	}
 }
 
@@ -361,8 +287,8 @@ __ISR__ SPI0_IRQHandler(){
 	static package pckgAux;
 	uint32_t PUSHRAux;
 
-	if(cont){
-		cont++;
+	if(cont){										// Al arrancar siempre salta un TCF
+		cont++;										//asi que procedemos a saltearlo
 		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
 		SPIPtrs[SPI_0]->POPR;
 
@@ -387,8 +313,8 @@ __ISR__ SPI0_IRQHandler(){
 			PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
  			PUSHRAux |= (SPI_PUSHR_TXDATA(pckgAux.msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
 			
-			if (pckgAux.cs_end){
-				PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
+			if (pckgAux.cs_end){					// Si no quedan más mensajes por mandar
+				PUSHRAux &= ~SPI_PUSHR_CONT_MASK;	// apago el CONT_PCS
 
 			}
 
