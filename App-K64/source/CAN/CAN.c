@@ -18,6 +18,13 @@
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
+
+#define ENABLE_TP
+
+#ifdef ENABLE_TP
+#define TP_PIN	PORTNUM2PIN(PC, 5)
+#endif
+
 //Instructiones
 #define READ        0x03
 #define WRITE       0x02
@@ -79,7 +86,7 @@
 #define BITMODSIZE  4
 
 #define MAXBYTES 8
-#define IRQ_CAN   PORTNUM2PIN(PC,11) // PTC11
+#define IRQ_CAN   PORTNUM2PIN(PC, 12) // PTC12
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
@@ -150,6 +157,11 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
     
     myID=ID; 
     MSGReceive=msgReceive;
+
+#ifdef ENABLE_TP
+	gpioMode(TP_PIN, OUTPUT);
+	gpioWrite(TP_PIN, LOW);
+#endif
 
     gpioMode(IRQ_CAN, INPUT);
     gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_FALLING_EDGE, CANReceive);
@@ -312,8 +324,16 @@ bool CANSend(uint8_t * data, uint8_t len){
 }
 
 void CANReceive(){
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, HIGH);
+#endif
+
   done=false; //Starting to receive
   CANRead(CANINTF_REG, &interrupt, viewinterrupt);
+
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, LOW);
+#endif
 }
 
 void viewinterrupt(){
