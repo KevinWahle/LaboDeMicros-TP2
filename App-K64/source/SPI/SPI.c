@@ -103,8 +103,7 @@ static package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
 /*******************************************************************************
  * STATIC VARIABLES AND CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
-
-// +ej: static int temperaturas_actuales[4];+
+uint8_t inInterrupt;
 
 
 /*******************************************************************************
@@ -264,7 +263,7 @@ void PCSInit(uint8_t SPI_n){
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 	uint32_t PUSHRAux;
 	gpioWrite(TESTPOINT, false);
-	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){															// Si no hay nada en el buffer
+	if(SPIBisEmpty(&(TxBuffer[SPI_0])) & !inInterrupt){															// Si no hay nada en el buffer
 
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
 		
@@ -306,7 +305,12 @@ __ISR__ SPI0_IRQHandler(){
 			*(pckgAux.pSave) = readAux;
 		}
 		
-		CBType callback = pckgAux.cb;
+		if(pckgAux.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
+			if(SPIBisEmpty(&(TxBuffer[SPI_0])))
+				inInterrupt=1;
+			(pckgAux.cb)();
+			inInterrupt=0;						
+		}
 		
 		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Hay más contenido para mandar
 			pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));
@@ -330,9 +334,6 @@ __ISR__ SPI0_IRQHandler(){
 			pckgAux.cs_end=0;
 		}		
 		
-		if(callback!=NULL){						// Ejecutamos la callback que nos pidió el anterior
-			(callback)();						
-		}
  	}
 	gpioWrite(TESTPOINT, false);
 }
