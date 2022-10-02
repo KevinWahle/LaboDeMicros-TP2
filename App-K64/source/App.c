@@ -13,10 +13,14 @@
 #include "timer/timer.h"
 #include "UART/uart.h"
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
+
+#define PI 3.14159265359
 
 #define UART_ID		0
 
@@ -30,7 +34,7 @@
 
 #define MAX_UART_MSG	32
 
-#define GROUPS_COUNT	7
+#define GROUPS_COUNT	8
 
 #define GROUP_NUMBER	5
 
@@ -59,6 +63,8 @@ static void parseCANMsg(angle_t angles[AXIS_COUNT], char* msg, size_t length);
 
 static void sendAngleUART();
 
+void readAngles(angle_t anglesArr[AXIS_COUNT]);
+
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
@@ -66,6 +72,9 @@ static void sendAngleUART();
 static const char angleID[] = ANGLE_ID_ARR;
 
 static const uart_cfg_t configUART = {.baudrate=115200, .parity=NO_PARITY, .MSBF=false};
+
+
+static const double gFactor = 488e-6;
 
 /*******************************************************************************
  *******************************************************************************
@@ -91,8 +100,6 @@ void App_Init (void)
 
 	timerInit();
 
-//	CANInit(CAN_ID, &CANRx);
-
 	uartInit(UART_ID, configUART);
 
 	timerSens = timerGetId();
@@ -106,10 +113,11 @@ void App_Init (void)
 void App_Run (void)
 {
 	init_ACC_MAG();
+	CANInit(CAN_ID, &CANRx);
 	while (1) {
-//		if (newMsg()) {		// Se recibe mensaje CAN
-//			parseCANMsg(groupsValues[CANRx.ID - CAN_BASE_ID], CANRx.data, CANRx.length);
-//		}
+		if (newMsg()) {		// Se recibe mensaje CAN
+			parseCANMsg(groupsValues[CANRx.ID - CAN_BASE_ID], (char*)CANRx.data, CANRx.length);
+		}
 		if (timerExpired(timerSens)) {
 			checkSensorAndSend();
 		}
@@ -144,24 +152,10 @@ void parseCANMsg(angle_t angles[AXIS_COUNT], char* msg, size_t length) {
 
 	}
 
-//	switch (*msg) {
-//	case 'R':
-//	case 'r':
-//		axis = 0;
-//		break;
-//	case 'C':
-//	case 'c':
-//		axis = 1;
-//		break;
-//	case 'O':
-//	case 'o':
-//		axis = 2;
-//		break;
-//	default:
-//		return;		// No hago nada si el primer byte no corresponde
-//	}
-
-	angles[axis] = atoi(msg+1);		// Guarda el angulo
+	char textToConvert[6];		// Nuevo string para agregar terminador
+	memcpy(textToConvert, msg+1, length-1);	// Y poder usar atoi()
+	textToConvert[length-1] = '\0';
+	angles[axis] = atoi(textToConvert);		// Guarda el angulo
 
 }
 
@@ -170,16 +164,19 @@ void checkSensorAndSend() {
 
 	static uint32_t noSend[3];
 
-	angle_t *myValues = groupsValues[GROUP_NUMBER-1];
+	angle_t *myValues = groupsValues[GROUP_NUMBER];
 
 	angle_t newValues[3];
 
 
-	// readValues(values);
+	 readAngles(newValues);
 	////////////////////////////	STUB
-	for (int i = 0; i < AXIS_COUNT; i++) {
-		newValues[i] = myValues[i] + 1;
-	}
+//	for (int i = 0; i < AXIS_COUNT; i++) {
+//		newValues[i] = myValues[i] + i+1;
+//	}
+//		newValues[0] = myValues[0] + 1;
+//		newValues[1] = myValues[1] + 3;
+//		newValues[2] = myValues[2] + 10;
 	///////////////////////////
 
 
@@ -191,8 +188,8 @@ void checkSensorAndSend() {
 			msg[0] = angleID[i];
 			uint8_t size = sprintf(msg+1, "%d", myValues[i]) + 1;
 
-//			CANSend(CAN_ID, msg, size);
-			uartWriteMsg(UART_ID, msg, size);		// DEBUG
+			CANSend((uint8_t*)msg, size);
+			// uartWriteMsg(UART_ID, msg, size);		// DEBUG
 
 			noSend[i] = 0;		// Aviso que se mando
 		}
@@ -204,13 +201,32 @@ void checkSensorAndSend() {
 }
 
 
+void readAngles(angle_t anglesArr[AXIS_COUNT]) {
+
+	ACCEL acc;
+	MAG mg;
+
+	getLastRead_ACC_MAG(&acc, &mg);
+
+	anglesArr[0] = atan2(acc.x, sqrt(pow(acc.y,2) + pow(acc.z,2)))*(180.0/PI);
+
+	anglesArr[1] = atan2(acc.y, acc.z)*(180.0/PI);
+
+	acc.x *= gFactor;
+
+	anglesArr[2] = asin(acc.x)*(180.0/PI);
+
+	startReading_ACC_MAG();		// Lanzo lectura para el proximo ciclo
+
+}
+
 void sendAngleUART() {
 
 	char msg[MAX_UART_MSG];
 
 	size_t size = 0;
-	for (int i = 1; i <= GROUPS_COUNT; i++) {
-		size = sprintf(msg, "%#X:\t%d\t%d\t%d\r\n", CAN_BASE_ID+i, groupsValues[i-1][0], groupsValues[i-1][1], groupsValues[i-1][2]);
+	for (int i = 0; i < GROUPS_COUNT; i++) {
+		size = sprintf(msg, "%#X:\t%d\t%d\t%d\r\n", CAN_BASE_ID+i, groupsValues[i][0], groupsValues[i][1], groupsValues[i][2]);
 		uartWriteMsg(UART_ID, msg, size);
 	}
 
