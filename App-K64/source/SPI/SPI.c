@@ -18,8 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// +Incluir el header propio (ej: #include "template.h")+
-
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
@@ -59,6 +57,8 @@
 #define PSIN_ALT (ALTERNATIVE_2)
 
 #define MY_PCS0 PORTNUM2PIN(PE,26)
+#define TESTPOINT PORTNUM2PIN(PB,20)
+
 typedef enum {PIN_DISABLE, ALTERNATIVE_1, ALTERNATIVE_2, ALTERNATIVE_3, ALTERNATIVE_4, 
 									ALTERNATIVE_5, ALTERNATIVE_6, ALTERNATIVE_7} mux_alt;
 typedef enum {OPEN_DRAIN, PUSH_PULL} pin_mode;
@@ -124,6 +124,8 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 		return false;
 	}
 	
+	gpioMode(TESTPOINT,OUTPUT);
+	
 	ClockGatingAndInterruptEnable(SPI_n);
 
 	if(config->type){	//Si es master
@@ -137,7 +139,7 @@ bool SPI_config (uint8_t SPI_n, SPI_config_t * config){
 	
 	// MCR Setup
 	SPIPtrs[SPI_n]->MCR = 0x00 | SPI_MCR_HALT(1);	// Paramos toda comunicacion
-	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state)| SPI_MCR_DIS_RXF(1));
+	SPIPtrs[SPI_n]->MCR |= (SPI_MCR_MSTR(config->type) | SPI_MCR_PCSIS(config->PCS_inactive_state) | SPI_MCR_DIS_RXF_MASK | SPI_MCR_ROOE_MASK);
 
 	// TCR Setup
 	SPIPtrs[SPI_n]->TCR &= SPI_TCR_SPI_TCNT(0);
@@ -261,7 +263,7 @@ void PCSInit(uint8_t SPI_n){
 
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 	uint32_t PUSHRAux;
-	
+	gpioWrite(TESTPOINT, false);
 	if(SPIBisEmpty(&(TxBuffer[SPI_0]))){															// Si no hay nada en el buffer
 
 		SPIBputChain(&(TxBuffer[SPI_0]), data+1, len-1);											// Buffereamos los mensajes
@@ -273,7 +275,7 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 		if(data[0].cs_end){
 			PUSHRAux &= ~SPI_PUSHR_CONT_MASK;
 		}
-
+		gpioWrite(TESTPOINT, true);
 		SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
 			
 	}
@@ -283,50 +285,56 @@ void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS){
 }
 
 __ISR__ SPI0_IRQHandler(){
+	gpioWrite(TESTPOINT, true);
 	static int cont=0;
 	static package pckgAux;
 	uint32_t PUSHRAux;
 
 	if(cont){										// Al arrancar siempre salta un TCF
 		cont++;										//asi que procedemos a saltearlo
-		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
+		SPIPtrs[SPI_0]->SR = SPI_SR_TCF_MASK;
 		SPIPtrs[SPI_0]->POPR;
 
 	}
 
 	else if(SPIPtrs[SPI_0]->SR & SPI_SR_TCF_MASK){
- 		SPIPtrs[SPI_0]->SR |= SPI_SR_TCF_MASK;
+ 		SPIPtrs[SPI_0]->SR = SPI_SR_TCF_MASK;
 		
 		uint8_t readAux=SPIPtrs[SPI_0]->POPR;
  		
  		if(pckgAux.read){							// Leemos si el anterior pidió que hagamos
-			*(pckgAux.pSave) = (uint8_t) readAux;
+			*(pckgAux.pSave) = readAux;
 		}
-
-		if(pckgAux.cb!=NULL){						// Ejecutamos la callback que nos pidió el anterior
-			(pckgAux.cb)();						
-		}
-
+		
+		CBType callback = pckgAux.cb;
+		
 		if(!SPIBisEmpty(&(TxBuffer[SPI_0]))){		// Hay más contenido para mandar
 			pckgAux = SPIBgetPckg(&(TxBuffer[SPI_0]));
 			PUSHRAux = SPIPtrs[SPI_0]->PUSHR; 
 			PUSHRAux &= ~SPI_PUSHR_TXDATA_MASK & ~SPI_PUSHR_PCS_MASK;
- 			PUSHRAux |= (SPI_PUSHR_TXDATA(pckgAux.msg)| SPI_PUSHR_PCS(1)<<0 | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
+ 			PUSHRAux |= (SPI_PUSHR_TXDATA(pckgAux.msg) | SPI_PUSHR_PCS(1) | SPI_PUSHR_CONT_MASK); //Actualizo lo prox a enviar
 			
 			if (pckgAux.cs_end){					// Si no quedan más mensajes por mandar
 				PUSHRAux &= ~SPI_PUSHR_CONT_MASK;	// apago el CONT_PCS
 
 			}
-
 			SPIPtrs[SPI_0]->PUSHR= PUSHRAux;
 
 		}
 
 		else{									//Si NO hay mas para mandar pongo el packgAux como nulo
-			memcpy(&pckgAux, &pckgNULL, sizeof(package));
-		}
+			pckgAux.msg=0;
+			pckgAux.read=0;
+			pckgAux.pSave=NULL;
+			pckgAux.cb=NULL;
+			pckgAux.cs_end=0;
+		}		
 		
+		if(callback!=NULL){						// Ejecutamos la callback que nos pidió el anterior
+			(callback)();						
+		}
  	}
+	gpioWrite(TESTPOINT, false);
 }
 
 // Leer el popr lo limpia

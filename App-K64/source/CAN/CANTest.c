@@ -33,7 +33,8 @@
  CANMsg_t mymsgReceive;
 CANMsg_t* msgReceive;
 
-uint8_t data[N]={'h','o','l','a'};
+uint8_t data[N]={'c','h','a','u'};
+//uint8_t data[N]={'h','o','l','a'};
 
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
@@ -50,7 +51,8 @@ void App_Init (void)
 void App_Run (void)
 {
 	
-    CANInit(0x105, msgReceive);
+    CANInit(0x100, msgReceive);
+//    CANInit(0x105, msgReceive);
 
     while(1) {
 
@@ -60,7 +62,7 @@ void App_Run (void)
 		}
 
 		if(newMsg()){
-			printf("ID: %d\n Msg: ", mymsgReceive.ID);
+			printf("ID: %#X\n Msg: ", mymsgReceive.ID);
 			for(int i=0; i<mymsgReceive.length; i++){
 				printf("%c", mymsgReceive.data[i]);
 			}

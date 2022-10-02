@@ -19,61 +19,64 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 //Instructiones
-#define READ 0x03
-#define WRITE 0x02
-#define BIT_MODIFY 0x05
+#define READ        0x03
+#define WRITE       0x02
+#define BIT_MODIFY  0x05
+#define RESET       0xC0
 
 //Defines de direcciones de registros
-#define CNF1_REG 0x2A
-#define CNF2_REG 0x29
-#define CNF3_REG 0x28
+#define RXF0SIDH_REG  0x00
+#define RXF0SIDL_REG  0x01
+#define BFPCTRL_REG   0x0C
 
-#define RXM0SIDH_REG 0x20
-#define RXM0SIDL_REG 0x21
+#define RXM0SIDH_REG  0x20
+#define RXM0SIDL_REG  0x21
 
-#define RXF0SIDH_REG 0x00
-#define RXF0SIDL_REG 0x01
-
-#define RXB0CTRL_REG 0x60
-#define BFPCTRL_REG 0x0C
-#define RXB0SIDH_REG 0x61
-#define RXB0SIDL_REG 0x62
-#define RXB0DLC_REG	0x65
-
-#define CANCTRL_REG 0x0F
-#define CANINTE_REG 0x2B
-#define CANINTF_REG 0x2C
-
-#define TXB0CTRL_REG 0x30
-#define TXB0SIDH_REG 0x31
-#define TXB0SIDL_REG 0x32
-#define TXB0DLC_REG 0x35
-
-#define TXB0D0_REG 0x36
-#define TXB0D1_REG 0x37
-#define TXB0D2_REG 0x38
-#define TXB0D3_REG 0x39
-#define TXB0D4_REG 0x3A
-#define TXB0D5_REG 0x3B
-#define TXB0D6_REG 0x3C
-#define TXB0D7_REG 0x3D
-
-#define RXB0D0_REG 0x66
-#define RXB0D1_REG 0x67
-#define RXB0D2_REG 0x68
-#define RXB0D3_REG 0x69
-#define RXB0D4_REG 0x6A
-#define RXB0D5_REG 0x6B
-#define RXB0D6_REG 0x6C
-#define RXB0D7_REG 0x6D
+#define CNF1_REG  0x2A
+#define CNF2_REG  0x29
+#define CNF3_REG  0x28
 
 
-#define TXRTSCTRL_REG 0x0D
+
+#define RXB0CTRL_REG  0x60
+#define RXB0SIDH_REG  0x61
+#define RXB0SIDL_REG  0x62
+#define RXB0DLC_REG	  0x65
+
+#define CANCTRL_REG     0x0F
+#define CANINTE_REG     0x2B
+#define CANINTF_REG     0x2C
+#define TXRTSCTRL_REG   0x0D
+
+#define TXB0CTRL_REG  0x30
+#define TXB0SIDH_REG  0x31
+#define TXB0SIDL_REG  0x32
+#define TXB0DLC_REG   0x35
+
+#define TXB0D0_REG  0x36
+#define TXB0D1_REG  0x37
+#define TXB0D2_REG  0x38
+#define TXB0D3_REG  0x39
+#define TXB0D4_REG  0x3A
+#define TXB0D5_REG  0x3B
+#define TXB0D6_REG  0x3C
+#define TXB0D7_REG  0x3D
+
+#define RXB0D0_REG  0x66
+#define RXB0D1_REG  0x67
+#define RXB0D2_REG  0x68
+#define RXB0D3_REG  0x69
+#define RXB0D4_REG  0x6A
+#define RXB0D5_REG  0x6B
+#define RXB0D6_REG  0x6C
+#define RXB0D7_REG  0x6D
 
 
-#define WRITESIZE 3
-#define READSIZE 3
-#define BITMODSIZE 4
+
+
+#define WRITESIZE   3
+#define READSIZE    3
+#define BITMODSIZE  4
 
 #define MAXBYTES 8
 #define IRQ_CAN   PORTNUM2PIN(PC,11) // PTC11
@@ -106,6 +109,7 @@ static bool done;
 void CANRead (uint8_t address, uint8_t* save, CBType mycb);
 void CANBitModify(uint8_t address, uint8_t mask, uint8_t data);
 void CANWrite (uint8_t address, uint8_t value);
+void CANReset();
 
 void CANReceive();
 void viewinterrupt();
@@ -137,7 +141,7 @@ void SPI_init(){      //TODO: modificar esto
     myconfig->frame_size=8;
     myconfig->clk_pol=0;
     myconfig->clk_phase=0;
-    myconfig->Baud_rate_scaler=0b0011;
+    myconfig->Baud_rate_scaler=0b0100;
 
     SPI_config(SPI_0,myconfig);
 }
@@ -148,17 +152,12 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
     MSGReceive=msgReceive;
 
     gpioMode(IRQ_CAN, INPUT);
-    gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_RISING_EDGE, CANReceive);
+    gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_FALLING_EDGE, CANReceive);
     
     SPI_init();
+    CANReset();
 
     CANBitModify(CANCTRL_REG, 0xE0, 0x80); // Sets Configuration mode
-
-    //TODO:
-    // CANWrite(RXF0SIDH_REG, );
-    // CANWrite(RXF0SIDL_REG, );
-    // CANWrite(RXM0SIDH_REG, );
-    // CANWrite(RXM0SIDL_REG, );
 
     CANWrite(TXRTSCTRL_REG, 0x01); //Pin is used to request message transmission of TXB0 buffer (on falling edge)
     CANWrite(RXB0CTRL_REG, 0x60);  //Turns mask/filters off; receives any message. TODO: Hay que recibir solos los de ID en un rango revisar RXM
@@ -167,33 +166,27 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
     CANBitModify(CNF2_REG, 0x3F, 0x1E); //PHSEG1=(3+1) PRSEG=(6+1)      TODO:  toco el bltmode?
     CANBitModify(CNF3_REG, 0x07, 0x03); //PHSEG2=(3+1)
 
-    CANWrite(CANINTE_REG,0x05); //TX0IE: Transmit Buffer 0 Empty Interrupt Enable bit
+    CANWrite(CANINTE_REG,0x01); //TX0IE: Transmit Buffer 0 Empty Interrupt Enable bit
                                 //RX0IE: Receive Buffer 0 Full Interrupt Enable bit
     //CANWrite(CANINTF_REG,0x05); //Transmit Buffer 0 Empty Interrupt Flag bit  //TODO: ver
                                 //RX0IF: Receive Buffer 0 Full Interrupt Flag bit
 
+
     //TODO: Puse el preescaler en 1. Si ponemos shooteo hasta que se manda el msg?
     CANBitModify(CANCTRL_REG, 0xEF, 0x04); //Sets Normal Operation mode,One-Shot, Clock Enable and Preescaler
 
-    //Poner en config mode ===> poner REQOP de CANCTRL en 100. 
-    
-    //Limpiar TXflag y RxFlag ===> Bits 2 y 0 del CANINTF
-    
-    //Setear Tiempos(Pag 24):
-    // BRP (CNF1)     Valor 0
-    // PRSEG (CNF2)   Valor 5
-    // PHSEG1(CNF2)   Valor 5
-    // PHSEG2(CNF3)   Valor 5
-    // SJW(CNF1)      Valor 4
+}
 
-    // Setear filtros Cap 4.3
-    
-    // Config Recepción Cap 4.2
+void CANReset(){
+  package mydata;
 
-    // Poner Normal Mode CANCTRL cap 4.7  
+  mydata.msg=RESET;
+  mydata.pSave=NULL;
+  mydata.cb=NULL;
+  mydata.read=false;
+  mydata.cs_end=1;
 
-    // CNF1: baudrateprescaler=3 (por consigna 125kbits/seg)
-
+  SPISend(SPI_0, &mydata, 1, 0);
 }
 
 void CANWrite (uint8_t address, uint8_t value){
@@ -356,14 +349,15 @@ void readData(){
       break;
   }
     //Read ID 
-    CANRead(RXB0SIDH_REG, &RXIDL, NULL);
-    CANRead(RXB0SIDL_REG, &RXIDH, readEnd);
+    CANRead(RXB0SIDH_REG, &RXIDH, NULL);
+    CANRead(RXB0SIDL_REG, &RXIDL, readEnd);
 
 }
 
 void readEnd (){
-    MSGReceive->ID=RXIDH<<3|RXIDL;
-    MSGReceive->length=RXdlc;
+    RXIDL >>= 5;
+    MSGReceive->ID = (RXIDH<<3) | RXIDL;
+    MSGReceive->length = RXdlc;
     memcpy(MSGReceive->data, Rxdata, MAXBYTES);
 
     //Clear all
@@ -381,7 +375,6 @@ bool newMsg(){
   if(newmsg) done = false;
   return newmsg;
 }
-
 
 /*******************************************************************************
  *******************************************************************************

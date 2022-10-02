@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SPIBUFFER_SIZE 100  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
+#define SPIBUFFER_SIZE 32  // 12 bytes buffer size JUST 11 bytes can be used for store data without deleting older bytes
 
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
@@ -25,11 +25,10 @@ typedef void (*CBType) (void);
 
 typedef struct{
 	uint8_t msg;
-	uint8_t *pSave; 	// Donde guardar data
-	CBType cb;		// Callback
+	uint8_t *pSave; 		// Donde guardar data
+	CBType cb;				// Callback
 	uint8_t read		:1;
 	uint8_t cs_end		:1;
-	//TODO: Agregar start y end de la transmision para gestionar PCs
 } package;
 
 typedef struct{
