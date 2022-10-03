@@ -22,7 +22,7 @@
 #define ENABLE_TP
 
 #ifdef ENABLE_TP
-#define TP_PIN	PORTNUM2PIN(PC, 5)
+#define TP_PIN	PORTNUM2PIN(PC, 9)
 #endif
 
 //Instructiones
