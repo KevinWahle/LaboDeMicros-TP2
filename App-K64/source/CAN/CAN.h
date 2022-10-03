@@ -25,13 +25,27 @@ typedef struct
   uint8_t data [8];
 }CANMsg_t;
 
-
+/**
+ * @brief Set up del CAN
+ * @param ID Id con el que se visualizará a la placa
+ * @param msgReceive Donde iran los parametros leídos
+*/
 void CANInit(uint16_t ID, CANMsg_t* msgReceive);
 
+/**
+ * @brief Envío de mensaje CAN
+ * @param data Data a envíar
+ * @param len Largo de la Data
+ * @return True si los parámetros son correctos
+*/
 bool CANSend(uint8_t * data, uint8_t len);
 
-//Return true if there is a new msg. Resets de msg bool
+/**
+ * @brief Verificación de recepción de mensaje CAN
+ * @return True si llegó un mensaje
+*/
 bool newMsg();
+
 /*******************************************************************************
  ******************************************************************************/
 

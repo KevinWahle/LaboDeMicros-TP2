@@ -43,8 +43,6 @@
 #define CNF2_REG  0x29
 #define CNF3_REG  0x28
 
-
-
 #define RXB0CTRL_REG  0x60
 #define RXB0SIDH_REG  0x61
 #define RXB0SIDL_REG  0x62
@@ -79,8 +77,7 @@
 #define RXB0D7_REG  0x6D
 
 
-
-
+//Modes
 #define WRITESIZE   3
 #define READSIZE    3
 #define BITMODSIZE  4
@@ -94,7 +91,7 @@
 
 /*******************************************************************************
  * VARIABLES WITH GLOBAL SCOPE
-static CANMsg* MSGReceive; ******************************************************************************/
+*******************************************************************************/
 
 static SPI_config_t config;
 static SPI_config_t * myconfig;
@@ -113,6 +110,7 @@ static bool done;
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
  ******************************************************************************/
+
 void CANRead (uint8_t address, uint8_t* save, CBType mycb);
 void CANBitModify(uint8_t address, uint8_t mask, uint8_t data);
 void CANWrite (uint8_t address, uint8_t value);
@@ -140,7 +138,7 @@ void readEnd ();
                         GLOBAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
-void SPI_init(){      //TODO: modificar esto
+void SPI_init(){      //Configuración del SPI
     myconfig=&config;
     myconfig->type=MASTER;
     myconfig->PCS_inactive_state=1;
@@ -164,7 +162,7 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
 #endif
 
     gpioMode(IRQ_CAN, INPUT);
-    gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_FALLING_EDGE, CANReceive);
+    gpioIRQ(IRQ_CAN, GPIO_IRQ_MODE_FALLING_EDGE, CANReceive);   // Para interrupcion cuando llegue un mensaje
     
     SPI_init();
     CANReset();
@@ -172,23 +170,65 @@ void CANInit(uint16_t ID, CANMsg_t* msgReceive){
     CANBitModify(CANCTRL_REG, 0xE0, 0x80); // Sets Configuration mode
 
     CANWrite(TXRTSCTRL_REG, 0x01); //Pin is used to request message transmission of TXB0 buffer (on falling edge)
-    CANWrite(RXB0CTRL_REG, 0x60);  //Turns mask/filters off; receives any message. TODO: Hay que recibir solos los de ID en un rango revisar RXM
+    CANWrite(RXB0CTRL_REG, 0x60);  //Turns mask/filters off; receives any message.
 
     CANWrite(CNF1_REG, 0xC3); // SJW=4 BRP=3
-    CANBitModify(CNF2_REG, 0x3F, 0x1E); //PHSEG1=(3+1) PRSEG=(6+1)      TODO:  toco el bltmode?
+    CANBitModify(CNF2_REG, 0x3F, 0x1E); //PHSEG1=(3+1) PRSEG=(6+1)     
     CANBitModify(CNF3_REG, 0x07, 0x03); //PHSEG2=(3+1)
 
     CANWrite(CANINTE_REG,0x01); //TX0IE: Transmit Buffer 0 Empty Interrupt Enable bit
                                 //RX0IE: Receive Buffer 0 Full Interrupt Enable bit
-    //CANWrite(CANINTF_REG,0x05); //Transmit Buffer 0 Empty Interrupt Flag bit  //TODO: ver
-                                //RX0IF: Receive Buffer 0 Full Interrupt Flag bit
-
-
-    //TODO: Puse el preescaler en 1. Si ponemos shooteo hasta que se manda el msg?
+ 
     CANBitModify(CANCTRL_REG, 0xEF, 0x04); //Sets Normal Operation mode,One-Shot, Clock Enable and Preescaler
-
 }
 
+bool CANSend(uint8_t * data, uint8_t len){
+  if (len>MAXBYTES){
+    return false;
+  }
+
+  CANBitModify(TXB0DLC_REG, 0x0F, len); //Set Length (DLC)
+  
+  //Set ID
+  uint8_t IDH = (uint8_t) ((myID>>3) & 0xFF);
+  uint8_t IDL = (uint8_t) (myID & 0x07);
+
+  CANBitModify(TXB0SIDH_REG, 0xFF, IDH); 
+  CANBitModify(TXB0SIDL_REG, 0XE0, IDL<<5);
+
+  //Set Data
+  switch(len){
+    case 8:
+      CANWrite(TXB0D7_REG, data[7]);
+    case 7:
+      CANWrite(TXB0D6_REG, data[6]);
+    case 6:
+      CANWrite(TXB0D5_REG, data[5]);
+    case 5:
+      CANWrite(TXB0D4_REG, data[4]);
+    case 4:
+      CANWrite(TXB0D3_REG, data[3]);
+    case 3:
+      CANWrite(TXB0D2_REG, data[2]);
+    case 2:
+      CANWrite(TXB0D1_REG, data[1]);
+    case 1:
+      CANWrite(TXB0D0_REG, data[0]);
+      break;
+
+    default:
+      break;
+  }
+
+  CANBitModify(TXB0CTRL_REG, 0x08, 0x08); //Buffer is currently pending transmission
+  return true;
+}
+
+/*******************************************************************************
+ *******************************************************************************
+                        LOCAL FUNCTION DEFINITIONS
+ *******************************************************************************
+ ******************************************************************************/
 void CANReset(){
   package mydata;
 
@@ -200,6 +240,7 @@ void CANReset(){
 
   SPISend(SPI_0, &mydata, 1, 0);
 }
+
 
 void CANWrite (uint8_t address, uint8_t value){
   package data[WRITESIZE];
@@ -224,6 +265,7 @@ void CANWrite (uint8_t address, uint8_t value){
 
   SPISend(SPI_0, data, WRITESIZE, 0);
 }
+
 
 void CANRead (uint8_t address, uint8_t* save, CBType mycb){
   package data[READSIZE];
@@ -280,49 +322,6 @@ void CANBitModify(uint8_t address, uint8_t mask, uint8_t value){
 }
 
 
-bool CANSend(uint8_t * data, uint8_t len){
-  if (len>MAXBYTES){
-    return false;
-  }
-
-  CANBitModify(TXB0DLC_REG, 0x0F, len); //Set Length (DLC)
-  
-  //Set ID
-  uint8_t IDH = (uint8_t) ((myID>>3) & 0xFF);
-  uint8_t IDL = (uint8_t) (myID & 0x07);
-
-  CANBitModify(TXB0SIDH_REG, 0xFF, IDH); 
-  CANBitModify(TXB0SIDL_REG, 0XE0, IDL<<5);
-
-  //Set Data
-  switch(len){
-    case 8:
-      CANWrite(TXB0D7_REG, data[7]);
-    case 7:
-      CANWrite(TXB0D6_REG, data[6]);
-    case 6:
-      CANWrite(TXB0D5_REG, data[5]);
-    case 5:
-      CANWrite(TXB0D4_REG, data[4]);
-    case 4:
-      CANWrite(TXB0D3_REG, data[3]);
-    case 3:
-      CANWrite(TXB0D2_REG, data[2]);
-    case 2:
-      CANWrite(TXB0D1_REG, data[1]);
-    case 1:
-      CANWrite(TXB0D0_REG, data[0]);
-      break;
-
-    default:
-      break;
-  }
-
-  CANBitModify(TXB0CTRL_REG, 0x08, 0x08); //Buffer is currently pending transmission
-  //TODO: B0RTSM? B0BFM?
-  return true;
-}
-
 void CANReceive(){
 #ifdef ENABLE_TP
 	gpioWrite(TP_PIN, HIGH);
@@ -345,8 +344,8 @@ void viewinterrupt(){
 
 }
 
-void readData(){
 
+void readData(){
   //Read data
   switch(RXdlc){
     case 8:
@@ -375,6 +374,7 @@ void readData(){
 
 }
 
+
 void readEnd (){
     RXIDL >>= 5;
     MSGReceive->ID = (RXIDH<<3) | RXIDL;
@@ -397,11 +397,7 @@ bool newMsg(){
   return newmsg;
 }
 
-/*******************************************************************************
- *******************************************************************************
-                        LOCAL FUNCTION DEFINITIONS
- *******************************************************************************
- ******************************************************************************/
+
 
 
 

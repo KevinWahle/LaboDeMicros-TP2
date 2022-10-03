@@ -36,7 +36,6 @@ typedef struct {
 	uint8_t frame_size          :4 ;  // Size of the package to send/receive
 	uint8_t Baud_rate_scaler    :4 ;  // Baud Rate Scaler (Reference Manual Page 1492)
 
-	  // TODO: Completar los bits faltantes
 	uint8_t unused :7 ;
 
 } SPI_config_t;
@@ -46,7 +45,6 @@ typedef struct {
  * VARIABLE PROTOTYPES WITH GLOBAL SCOPE
  ******************************************************************************/
 
-// +ej: extern unsigned int anio_actual;+
 
 
 /*******************************************************************************
@@ -54,14 +52,18 @@ typedef struct {
  ******************************************************************************/
 
 /**
- * @brief TODO: completar descripcion
- * @param param1 Descripcion parametro 1
- * @param param2 Descripcion parametro 2
- * @return Descripcion valor que devuelve
+ * @brief Set Up del SPI
+ * @param SPI_n Numero de SPI a utilizar
+ * @param config Opciones sobre la configuracion
+ * @return True si la configuracion fue exitosa
 */
-// +ej: char lcd_goto (int fil, int col);+
-
 bool SPI_config (uint8_t SPI_n, SPI_config_t * config);
+
+/**
+ * @brief Se genera una opracion de envíar/recibir, encolando los mensajes
+ * @param data Información sobre el mensaje a leer/escribir
+ * @param len Largo del mensaje
+*/
 void SPISend(uint8_t SPI_n, package* data, uint8_t len, uint8_t PCS);
 
 /*******************************************************************************
