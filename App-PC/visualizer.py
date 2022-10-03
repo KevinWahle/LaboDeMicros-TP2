@@ -11,11 +11,14 @@ COLORS= {"BLACK": (0, 0, 0),
          "BLUE": (0, 0, 255),
          "YELLOW": (255, 255, 51),
          "PINK": (255, 0, 255),
-         "GREEN": (0, 255, 0),}
+         "GREEN": (0, 255, 0),
+         "WHITE": (255, 255, 255)}
  
-GROUPS_COUNT = 5
+GROUPS_COUNT = 6
 AXIS_COUNT = 3
-SCREEN_SIZE = 1080, 720
+SCREEN_SIZE = 900, 720
+SEPX = 3.5
+SEPY = 2
 
 ######################
 #                    #
@@ -103,15 +106,16 @@ def updateScreen(screen):
 ######################
 
 cubes = [   
-            Physical(offset= (0,0,0), color=COLORS["RED"]), 
-            Physical(offset= (3,3,0), color=COLORS["BLUE"]), 
-            Physical(offset= (-3,3,0), color=COLORS["YELLOW"]),
-            Physical(offset= (3,-3,3), color=COLORS["PINK"]),
-            Physical(offset= (-3,-3,3), color=COLORS["GREEN"]),
+            Physical(offset= (-SEPX, -SEPY,0), color=COLORS["GREEN"]),
+            Physical(offset= (0, -SEPY, 0), color=COLORS["WHITE"]),
+            Physical(offset= (SEPX, -SEPY,0), color=COLORS["PINK"]),
+            Physical(offset= (-SEPX, SEPY, 0), color=COLORS["YELLOW"]),
+            Physical(offset= (0, SEPY, 0), color=COLORS["RED"]), 
+            Physical(offset= (SEPX, SEPY,0), color=COLORS["BLUE"]), 
         ]
 
 def main():
-    ser = serial.Serial('COM3', 115200)
+    ser = serial.Serial('COM8', 115200) #Com3 para serman
     boards = np.empty((GROUPS_COUNT, AXIS_COUNT))
 
     pygame.init()
