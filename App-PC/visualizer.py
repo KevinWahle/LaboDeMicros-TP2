@@ -115,7 +115,7 @@ cubes = [
         ]
 
 def main():
-    ser = serial.Serial('COM8', 115200) #Com3 para serman
+    ser = serial.Serial('COM5', 115200) #Com3 para serman
     boards = np.empty((GROUPS_COUNT, AXIS_COUNT))
 
     pygame.init()
@@ -132,9 +132,9 @@ def main():
             boards[index] = line[7:].removesuffix('\r\n').split('\t')
 
         for grupo in range(GROUPS_COUNT):
-            cubes[grupo].rotate(axis=X, θ=float(boards[grupo][1])*pi/180)    # ROLL
-            cubes[grupo].rotate(axis=Y, θ=float(boards[grupo][2])*pi/180)    # CABECEO
-            cubes[grupo].rotate(axis=Z, θ=float(boards[grupo][0])*pi/180)    # ORIENTACION
+            cubes[grupo].rotate(axis=Z, θ=float(-boards[grupo][0])*pi/180)    # ROLL  
+            cubes[grupo].rotate(axis=X, θ=float(boards[grupo][1])*pi/180)    # CABECEO  
+            cubes[grupo].rotate(axis=Y, θ=float(boards[grupo][2])*pi/180)    # ORIENTACION
 
         print(boards)
 
