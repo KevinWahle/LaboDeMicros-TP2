@@ -21,7 +21,7 @@
 #define ENABLE_TP
 
 #ifdef ENABLE_TP
-#define TP_PIN	PORTNUM2PIN(PC, 11)
+#define TP_PIN	PORTNUM2PIN(PC, 5)
 #endif
 
 #define CORE_CLOCK	__CORE_CLOCK__
