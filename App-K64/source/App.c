@@ -214,7 +214,7 @@ void readAngles(angle_t anglesArr[AXIS_COUNT]) {
 
 	acc.x *= gFactor;
 
-	anglesArr[2] = 0;
+	anglesArr[2] = asin(acc.x)*(180.0/PI);
 
 	startReading_ACC_MAG();		// Lanzo lectura para el proximo ciclo
 
