@@ -59,23 +59,22 @@
 #define PSIN_ALT (ALTERNATIVE_2)
 
 #ifdef TP_ENABLE
-#define TESTPOINT PORTNUM2PIN(PB, 20)
+#define TESTPOINT PORTNUM2PIN(PC, 8)
 #endif
+
+
+/*******************************************************************************
+ * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
+ ******************************************************************************/
 
 typedef enum {PIN_DISABLE, ALTERNATIVE_1, ALTERNATIVE_2, ALTERNATIVE_3, ALTERNATIVE_4, 
 									ALTERNATIVE_5, ALTERNATIVE_6, ALTERNATIVE_7} mux_alt;
 typedef enum {OPEN_DRAIN, PUSH_PULL} pin_mode;
 
 /*******************************************************************************
- * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
- ******************************************************************************/
-
-
-/*******************************************************************************
  * VARIABLES WITH GLOBAL SCOPE
  ******************************************************************************/
 
-// +ej: unsigned int anio_actual;+
 
 
 /*******************************************************************************
@@ -99,14 +98,11 @@ static SPIBuffer TxBuffer[SPI_2];
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
 
-//static package pckgNULL={.msg=0, .pSave=NULL, .cb=NULL, .read=0, .cs_end=0};
-
-
 
 /*******************************************************************************
  * STATIC VARIABLES AND CONST VARIABLES WITH FILE LEVEL SCOPE
  ******************************************************************************/
-uint8_t inInterrupt;
+static uint8_t inInterrupt;
 
 
 /*******************************************************************************
@@ -349,9 +345,6 @@ __ISR__ SPI0_IRQHandler(){
 #endif
 }
 
-// Leer el popr lo limpia
-// Escribi el pushr lo manda
 
-//TODO: CUMPLIR TIEMPOS
 
 

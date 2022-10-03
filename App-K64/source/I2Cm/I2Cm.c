@@ -21,31 +21,12 @@
 #define ENABLE_TP
 
 #ifdef ENABLE_TP
-#define TP_PIN	PORTNUM2PIN(PC, 3)
+#define TP_PIN	PORTNUM2PIN(PC, 7)
 #endif
-
-// TODO: En modo MASTER RX, el valor a responder en el ACKbit se debe configurar antes de comenzar la lectura delbyte
 
 #define I2C_COUNT	3
 
 #define BUS_CLK	50000000UL
-
-/*******************************************************************************
- * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
- ******************************************************************************/
-
-
-/*******************************************************************************
- * VARIABLES WITH GLOBAL SCOPE
- ******************************************************************************/
-
-// +ej: unsigned int anio_actual;+
-
-
-/*******************************************************************************
- * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
- ******************************************************************************/
-
 
 /*******************************************************************************
  * ROM CONST VARIABLES WITH FILE LEVEL SCOPE
@@ -84,7 +65,6 @@ void I2CmInit(I2CPort_t id) {
 
 // Clock Gating
 
-	//TODO: Enable CLK for PORTx
 	*(I2CClkSimPtr[id]) |= I2CClkSimMask[id];
 
 // Config pins (ALT, Open Drain, NO Pullup)
@@ -219,16 +199,28 @@ __ISR__ I2C0_IRQHandler() {
 
 				uint8_t dummyData = pI2C->D;  // Leo dummy y disparo lectura
 				dummyData++; // USING DUMMY
+
+				#ifdef ENABLE_TP
+					gpioWrite(TP_PIN, LOW);
+				#endif
 				return;
 			}
 			else if(writeState[0].writtenBytesCounter >= writeState[0].writeSize && readState[0].readSize == 0){  // si ya se escribio \todo lo que me pasaron y no hay nada para leer
 				pI2C->C1 &= ~I2C_C1_MST_MASK;     // genero el Stop Signal
 				isBusBusy = false;
+
+				#ifdef ENABLE_TP
+					gpioWrite(TP_PIN, LOW);
+				#endif
 				return;
 			}
 			else if(pI2C->S & I2C_S_RXAK_MASK){  // si entra, no me reconocio el ACK, => corto \todo
 				pI2C->C1 &= ~I2C_C1_MST_MASK;    // genero el Stop Signal
 				isBusBusy = false;
+
+				#ifdef ENABLE_TP
+					gpioWrite(TP_PIN, LOW);
+				#endif
 				return;
 			}
 			else if(!(pI2C->S & I2C_S_RXAK_MASK)){ //si entra, me envio el ACK
@@ -236,6 +228,10 @@ __ISR__ I2C0_IRQHandler() {
 					if(writeState[0].writtenBytesCounter < writeState[0].writeSize){ // si aun no escribi \todo
 						pI2C->D = writeState[0].writeBuffer[writeState[0].writtenBytesCounter];
 						writeState[0].writtenBytesCounter++;
+
+						#ifdef ENABLE_TP
+							gpioWrite(TP_PIN, LOW);
+						#endif
 						return;
 					}
 					else if(writeState[0].writtenBytesCounter == writeState[0].writeSize){	 // si escribi \todo, lanzo un Repeated start (ya se que readSize > 0, lo que implica un repeated start)
@@ -255,6 +251,10 @@ __ISR__ I2C0_IRQHandler() {
 
 					uint8_t dummyData = pI2C->D;  // Leo dummy y disparo lectura
 					dummyData++; // USING DUMMY
+
+					#ifdef ENABLE_TP
+						gpioWrite(TP_PIN, LOW);
+					#endif
 					return;
 				}
 			}
@@ -269,6 +269,10 @@ __ISR__ I2C0_IRQHandler() {
 
 			 	readState[0].readBuffer[readState[0].readBytesCounter] = pI2C->D;
 				readState[0].readBytesCounter++;
+
+				#ifdef ENABLE_TP
+					gpioWrite(TP_PIN, LOW);
+				#endif
 				return;
 			}
 			else{
@@ -276,6 +280,10 @@ __ISR__ I2C0_IRQHandler() {
 			 	readState[0].readBuffer[readState[0].readBytesCounter] = pI2C->D;  //
 				readState[0].readBytesCounter++;
 				isBusBusy = false;
+
+				#ifdef ENABLE_TP
+					gpioWrite(TP_PIN, LOW);
+				#endif
 				return;
 			}
 			break;

@@ -115,7 +115,7 @@ void App_Run (void)
 	init_ACC_MAG();
 	CANInit(CAN_ID, &CANRx);
 	while (1) {
-		if (newMsg()) {		// Se recibe mensaje CAN
+		if (newMsg() && CANRx.ID >= CAN_BASE_ID && CANRx.ID < CAN_BASE_ID + GROUPS_COUNT) {		// Se recibe mensaje CAN
 			parseCANMsg(groupsValues[CANRx.ID - CAN_BASE_ID], (char*)CANRx.data, CANRx.length);
 		}
 		if (timerExpired(timerSens)) {

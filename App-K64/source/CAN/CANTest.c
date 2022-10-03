@@ -30,8 +30,7 @@
  *******************************************************************************
  ******************************************************************************/
 
- CANMsg_t mymsgReceive;
-CANMsg_t* msgReceive;
+CANMsg_t mymsgReceive;
 
 uint8_t data[N]={'c','h','a','u'};
 //uint8_t data[N]={'h','o','l','a'};
@@ -40,9 +39,7 @@ uint8_t data[N]={'c','h','a','u'};
 void App_Init (void)
 {
     gpioMode(PIN_SW3, INPUT);					//Ya es pullup electricamente
-    gpioMode(PIN_SW2, INPUT_PULLUP);
-
-    msgReceive=&mymsgReceive;
+    // gpioMode(PIN_SW2, INPUT_PULLUP);
 
 
 }
@@ -50,11 +47,10 @@ void App_Init (void)
 /* Función que se llama constantemente en un ciclo infinito */
 void App_Run (void)
 {
-	
-    CANInit(0x100, msgReceive);
-//    CANInit(0x105, msgReceive);
 
-    while(1) {
+	CANInit(0x100, &mymsgReceive);
+//    CANInit(0x105, msgReceive);
+	while (1) {
 
 		if (!gpioRead(PIN_SW3)){
 			while (!gpioRead(PIN_SW3));
@@ -64,11 +60,11 @@ void App_Run (void)
 		if(newMsg()){
 			printf("ID: %#X\n Msg: ", mymsgReceive.ID);
 			for(int i=0; i<mymsgReceive.length; i++){
-				printf("%c", mymsgReceive.data[i]);
+			  printf("%c", mymsgReceive.data[i]);
 			}
 			printf("\n");
 		}
-    }
+	}
 
 }
 
