@@ -64,7 +64,7 @@ void App_Run (void)
 
 			double yaw = atan2(Acc[0], sqrt(pow(Acc[1],2) + pow(Acc[2],2)))*(180.0/3.14);
 			//double pitch = atan2(Acc[1], sqrt(pow(Acc[0],2) + pow(Acc[2],2)))*(180.0/3.14);
-			double pitch = asinf(Acc[0])*(180.0/3.14);
+			double pitch = asin(Acc[0])*(180.0/3.14);
 //			double roll = atan2(acc.z, sqrt(pow(acc.x,2) + pow(acc.y,2)))*(180.0/3.14);
 			//double roll = atan2(Acc[0], Acc[2])*(180.0/3.14);
 			double roll = atan2(Acc[1], Acc[2])*(180.0/3.14);

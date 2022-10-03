@@ -18,6 +18,12 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
+#define ENABLE_TP
+
+#ifdef ENABLE_TP
+#define TP_PIN	PORTNUM2PIN(PC, 3)
+#endif
+
 // TODO: En modo MASTER RX, el valor a responder en el ACKbit se debe configurar antes de comenzar la lectura delbyte
 
 #define I2C_COUNT	3
@@ -103,6 +109,12 @@ void I2CmInit(I2CPort_t id) {
 
 	NVIC_EnableIRQ(I2CIRQs[id%I2C_COUNT]);
 
+
+#ifdef ENABLE_TP
+	gpioMode(TP_PIN, OUTPUT);
+//	gpioWrite(TP_PIN, LOW);
+#endif
+
 }
 
 typedef struct{
@@ -185,6 +197,11 @@ bool isI2CBusy(I2CPort_t id){
  ******************************************************************************/
 
 __ISR__ I2C0_IRQHandler() {
+
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, HIGH);
+#endif
+
 	//I2C_IRQ();
 	I2C_Type* pI2C = I2CPtrs[0];
  	pI2C->S |= I2C_S_IICIF_MASK;     // borro el flag de la interrupcion
@@ -266,14 +283,32 @@ __ISR__ I2C0_IRQHandler() {
 			break;
 		}
 	}
+
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, LOW);
+#endif
+
 }
 /*
 __ISR__ I2C1_IRQHandler() {
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, HIGH);
+#endif
 	I2C_IRQ();
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, LOW);
+#endif
+
 }
 
 __ISR__ I2C2_IRQHandler() {
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, HIGH);
+#endif
 	I2C_IRQ();
+#ifdef ENABLE_TP
+	gpioWrite(TP_PIN, LOW);
+#endif
 }
 
 static void I2C_IRQ() {
