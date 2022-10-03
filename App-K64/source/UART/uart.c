@@ -18,10 +18,10 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-//#define ENABLE_TP
+#define ENABLE_TP
 
 #ifdef ENABLE_TP
-#define TP_PIN	PORTNUM2PIN(PC, 12)
+#define TP_PIN	PORTNUM2PIN(PC, 5)
 #endif
 
 #define CORE_CLOCK	__CORE_CLOCK__

@@ -337,10 +337,11 @@ void CANReceive(){
 }
 
 void viewinterrupt(){
-  if ((interrupt%2)==1){  // Veo que sea la interrupcion que quiero (RX0IF)
-    CANBitModify(CANINTF_REG, 0x01, 0x00); //Pongo el Flag en 0
-    CANRead(RXB0DLC_REG, &RXdlc, readData); // Veo cuantos datos tengo
-  }
+//	CANWrite(CANINTF_REG, 0x00); // Apago todos los flags
+	if ((interrupt%2)==1){  // Veo que sea la interrupcion que quiero (RX0IF)
+		CANBitModify(CANINTF_REG, 0x01, 0x00); //Pongo el Flag en 0
+		CANRead(RXB0DLC_REG, &RXdlc, readData); // Veo cuantos datos tengo
+	}
 
 }
 
