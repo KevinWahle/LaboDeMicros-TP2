@@ -111,7 +111,7 @@ cubes = [
         ]
 
 def main():
-    ser = serial.Serial('COM8', 115200)
+    ser = serial.Serial('COM3', 115200)
     boards = np.empty((GROUPS_COUNT, AXIS_COUNT))
 
     pygame.init()
@@ -123,14 +123,14 @@ def main():
         line = str(ser.readline(), 'UTF-8')
         index=int(line[4])
 
-        #if index<GROUPS_COUNT:
-        if index==5:
-            boards[:] = line[7:].removesuffix('\r\n').split('\t')
+        if index < GROUPS_COUNT:
+        # if index==5:
+            boards[index] = line[7:].removesuffix('\r\n').split('\t')
 
         for grupo in range(GROUPS_COUNT):
-            cubes[grupo].rotate(axis=X, θ=float(boards[grupo][0])*pi/180)    # ROLL
-            cubes[grupo].rotate(axis=Y, θ=float(boards[grupo][1])*pi/180)    # CABECEO
-            cubes[grupo].rotate(axis=Z, θ=float(boards[grupo][2])*pi/180)    # ORIENTACION
+            cubes[grupo].rotate(axis=X, θ=float(boards[grupo][1])*pi/180)    # ROLL
+            cubes[grupo].rotate(axis=Y, θ=float(boards[grupo][2])*pi/180)    # CABECEO
+            cubes[grupo].rotate(axis=Z, θ=float(boards[grupo][0])*pi/180)    # ORIENTACION
 
         print(boards)
 
